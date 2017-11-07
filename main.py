@@ -23,11 +23,15 @@ logger = Gogo(
 def get_videofile_url(youtube_url):
     options = dict(quiet=True)
     with youtube_dl.YoutubeDL(options) as ydl:
-
         r = ydl.extract_info(youtube_url, download=False)
-        best_format = r['formats'][-1]
 
-        return best_format['url']
+    def is_mp4_with_audio(x):
+        return (x['ext'] == 'mp4'
+            and x['acodec'] != 'none')
+
+    mp4_formats_with_audio = list(filter(is_mp4_with_audio, r['formats']))
+    best_format = mp4_formats_with_audio[-1]
+    return best_format['url']
 
 
 def download_clip(url, start, length='10'):
