@@ -2,6 +2,7 @@ import os
 from io import BytesIO
 from time import time
 import logging
+from datetime import timedelta
 
 import youtube_dl
 from ffmpy import FFmpeg
@@ -57,10 +58,21 @@ def download_clip(url, start, length='10'):
         logger.exception(e)
 
 
+def summarize_total_seconds(h, m, s, **groups):
+    """Summarizes arbitrary combinations of hours, minutes and seconds
+       into total number of seconds."""
+    h = 0 if h is None else int(h)
+    m = 0 if m is None else int(m)
+    s = 0 if s is None else int(s)
+
+    delta = timedelta(hours=h, minutes=m, seconds=s)
+    return str(int(delta.total_seconds()))
+
+
 def handle_link(bot, update, groupdict):
     message = update.message
 
-    start = '{min}:{sec}'.format(**groupdict)
+    start = summarize_total_seconds(**groupdict)
     youtube_url = groupdict['url']
     length = groupdict['length']
     logger.info('Url: %s, start: %s, lenght: %s', youtube_url, start, length)
@@ -83,15 +95,17 @@ if __name__ == '__main__':
     updater = Updater(TOKEN)
     dp = updater.dispatcher
 
+    hour_min_sec_pattern = (
+        r'(?:(?P<h>\d+)h)?'  # optional
+         '(?:(?P<m>\d+)m)?'  # optional
+            '(?P<s>\d+)s'
+    )
+
     pattern = (
-        r'.*'
-         '(?P<url>(?:https?://)youtu\.be/[A-Za-z0-9_-]{11})'
-         '\?t='
-         '(?P<min>\d{1,2})'
-         'm'
-         '(?P<sec>\d{1,2})'
-         's'
-         '(?:\s+(?P<length>\d+))?'
+        r'.*?'
+         '(?P<url>(?:https?://)?youtu\.be/[A-Za-z0-9_-]{11})'
+         '\?t=' + hour_min_sec_pattern +
+         '(?:\s+(?P<length>\d+))?'  # optional
     )
 
     dp.add_handler(RegexHandler(pattern, handle_link, pass_groupdict=True))
