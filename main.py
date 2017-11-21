@@ -36,48 +36,48 @@ def get_videofile_url(youtube_url):
 
 
 def download_clip(url, start, length='10'):
-    try:
-        ext = 'mp4'
-        out_file_path = '{name}.{ext}'.format(name=time(), ext=ext)
+    ext = 'mp4'
+    out_file_path = '{name}.{ext}'.format(name=time(), ext=ext)
 
-        ff = FFmpeg(
-            inputs={url: ['-ss', start]},
-            outputs={out_file_path: ['-t', length, '-c', 'copy', '-avoid_negative_ts', '1']},
-            global_options='-v quiet'
-        )
-        logger.info(ff.cmd)
-        ff.run()
+    ff = FFmpeg(
+        inputs={url: ['-ss', start]},
+        outputs={out_file_path: ['-t', length, '-c', 'copy', '-avoid_negative_ts', '1']},
+        global_options='-v quiet'
+    )
+    logger.info(ff.cmd)
+    ff.run()
 
-        with open(out_file_path, 'rb') as f:
-            out_file = BytesIO(f.read())
-            out_file.seek(0)
-        os.remove(out_file_path)
+    with open(out_file_path, 'rb') as f:
+        out_file = BytesIO(f.read())
+        out_file.seek(0)
+    os.remove(out_file_path)
 
-        return out_file
-    except Exception as e:
-        logger.exception(e)
+    return out_file
 
 
 def handle_link(bot, update, groupdict):
-    message = update.message
+    try:
+        message = update.message
 
-    link_info = parse_youtube_url(groupdict['url'])
+        link_info = parse_youtube_url(groupdict['url'])
 
-    start = link_info.start
-    youtube_url = 'https://youtu.be/' + link_info.id
-    length = groupdict['length']
+        start = link_info.start
+        youtube_url = 'https://youtu.be/' + link_info.id
+        length = groupdict['length']
 
-    logger.info('Url: %s, start: %s, lenght: %s', youtube_url, start, length)
+        logger.info('Url: %s, start: %s, lenght: %s', youtube_url, start, length)
 
-    if not length:
-        length = '10'
+        if not length:
+            length = '10'
 
-    bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
+        bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
 
-    url = get_videofile_url(youtube_url)
-    downloaded_file = download_clip(url, start, length)
+        url = get_videofile_url(youtube_url)
+        downloaded_file = download_clip(url, start, length)
 
-    message.reply_video(downloaded_file, quote=False)
+        message.reply_video(downloaded_file, quote=False)
+    except Exception as e:
+        logger.exception(e)
 
 
 def error_handler(bot, update, error):
