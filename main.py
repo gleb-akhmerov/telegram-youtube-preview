@@ -42,7 +42,7 @@ def download_clip(url, start, length='10'):
     ff = FFmpeg(
         inputs={url: ['-ss', start]},
         outputs={out_file_path: ['-t', length, '-c', 'copy', '-avoid_negative_ts', '1']},
-        global_options='-v quiet'
+        global_options='-v warning'
     )
     logger.info(ff.cmd)
     ff.run()
