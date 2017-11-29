@@ -12,7 +12,7 @@ def timestamp_to_seconds(timestamp):
     pattern = (
         '(?:(?P<h>\d+)h)?'
         '(?:(?P<m>\d+)m)?'
-           '(?P<s>\d+)s'
+        '(?:(?P<s>\d+)s)?'
     )
 
     d = re.match(pattern, timestamp).groupdict()
