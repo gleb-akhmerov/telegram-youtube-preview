@@ -65,7 +65,7 @@ def handle_link(bot, update, groupdict):
         youtube_url = 'https://youtu.be/' + link_info.id
         length = groupdict['length']
 
-        logger.info('Url: %s, start: %s, lenght: %s', youtube_url, start, length)
+        logger.info('Url: %s, start: %s, length: %s', youtube_url, start, length)
 
         if not length:
             length = '10'
