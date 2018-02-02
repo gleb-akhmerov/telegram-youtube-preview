@@ -9,7 +9,7 @@ from pygogo import Gogo
 from telegram.ext import Updater, RegexHandler
 import telegram
 
-from parser import parse_youtube_url
+from parser import parse_youtube_url, HMS_PATTERN
 from config import TOKEN
 
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
          '(?P<url>'
              '(https?://)?(youtu\.be/'
              '|(?:www\.)?youtube\.com/watch)'
-             '\S*[?&]t=\S+'
+             '\S*[?&]t={}'.format(HMS_PATTERN) +
          ')'
          '(?:\s+(?P<length>\d+))?'  # optional
     )

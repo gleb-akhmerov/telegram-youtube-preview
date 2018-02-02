@@ -8,6 +8,13 @@ from furl import furl
 YoutubeLinkInfo = namedtuple('YoutubeLinkInfo', ['id', 'start'])
 
 
+HMS_PATTERN = (
+    '(?:(\d+)h)?'
+    '(?:(\d+)m)?'
+    '(?:(\d+)s)?'
+)
+
+
 def timestamp_to_seconds(timestamp):
     pattern = (
         '(?:(?P<h>\d+)h)?'
