@@ -35,13 +35,13 @@ def get_videofile_url(youtube_url):
     return best_format['url']
 
 
-def download_clip(url, start, length='10'):
+def download_clip(url, start, length=10):
     ext = 'mp4'
     out_file_path = '{name}.{ext}'.format(name=time(), ext=ext)
 
     ff = FFmpeg(
-        inputs={url: ['-ss', start]},
-        outputs={out_file_path: ['-t', length, '-c', 'copy', '-avoid_negative_ts', '1']},
+        inputs={url: ['-ss', str(start)]},
+        outputs={out_file_path: ['-t', str(length), '-c', 'copy', '-avoid_negative_ts', '1']},
         global_options='-v warning'
     )
     logger.info(ff.cmd)
@@ -65,11 +65,11 @@ def handle_link(bot, update, groupdict):
         youtube_url = 'https://youtu.be/' + link_info.id
 
         if groupdict['end']:
-            length = str(int(timestamp_to_seconds(groupdict['end'])) - int(start))
+            length = timestamp_to_seconds(groupdict['end']) - start
         elif groupdict['length']:
             length = groupdict['length']
         else:
-            length = '10'
+            length = 10
 
         logger.info('Url: %s, start: %s, length: %s', youtube_url, start, length)
 

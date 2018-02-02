@@ -29,7 +29,7 @@ def timestamp_to_seconds(timestamp):
     s = 0 if d['s'] is None else int(d['s'])
 
     delta = timedelta(hours=h, minutes=m, seconds=s)
-    return str(int(delta.total_seconds()))
+    return round(delta.total_seconds())
 
 
 def parse_youtube_url(url):
