@@ -1,0 +1,3 @@
+Currently, updater decides that update is handled based on filter. We need a
+more flexible way to know this thing, because a part of input parsing takes
+place inside of handler.
