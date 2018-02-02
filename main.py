@@ -9,7 +9,7 @@ from pygogo import Gogo
 from telegram.ext import Updater, RegexHandler
 import telegram
 
-from parser import parse_youtube_url, HMS_PATTERN
+from parser import parse_youtube_url, timestamp_to_seconds, HMS_PATTERN
 from config import TOKEN
 
 
@@ -63,12 +63,15 @@ def handle_link(bot, update, groupdict):
 
         start = link_info.start
         youtube_url = 'https://youtu.be/' + link_info.id
-        length = groupdict['length']
+
+        if groupdict['end']:
+            length = str(int(timestamp_to_seconds(groupdict['end'])) - int(start))
+        elif groupdict['length']:
+            length = groupdict['length']
+        else:
+            length = '10'
 
         logger.info('Url: %s, start: %s, length: %s', youtube_url, start, length)
-
-        if not length:
-            length = '10'
 
         bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
 
@@ -95,7 +98,7 @@ if __name__ == '__main__':
              '|(?:www\.)?youtube\.com/watch)'
              '\S*[?&]t={}'.format(HMS_PATTERN) +
          ')'
-         '(?:\s+(?P<length>\d+))?'  # optional
+         '(?:\s+(?:(?P<end>{})|(?P<length>\d+)))?'.format(HMS_PATTERN)  # optional
     )
 
     logger.info(pattern)
