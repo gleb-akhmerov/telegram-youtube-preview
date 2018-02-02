@@ -93,7 +93,7 @@ if __name__ == '__main__':
          '(?P<url>'
              '(https?://)?(youtu\.be/'
              '|(?:www\.)?youtube\.com/watch)'
-             '\S*[?&]t=\S*'
+             '\S*[?&]t=\S+'
          ')'
          '(?:\s+(?P<length>\d+))?'  # optional
     )
