@@ -98,7 +98,7 @@ if __name__ == '__main__':
              '|(?:www\.)?youtube\.com/watch)'
              '\S*[?&]t={}'.format(HMS_PATTERN) +
          ')'
-         '(?:\s+(?:(?P<end>{})|(?P<length>\d+)))?'.format(HMS_PATTERN)  # optional
+         '(?:\s+(?:(?P<end>(?=\d+[hms]){})|(?P<length>\d+)))?'.format(HMS_PATTERN)  # optional
     )
 
     logger.info(pattern)
