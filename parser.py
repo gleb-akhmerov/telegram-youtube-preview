@@ -22,11 +22,11 @@ def timestamp_to_seconds(timestamp):
         '(?:(?P<s>\d+)s)?'
     )
 
-    d = re.match(pattern, timestamp).groupdict()
+    d = re.match(pattern, timestamp).groupdict(default=0)
 
-    h = 0 if d['h'] is None else int(d['h'])
-    m = 0 if d['m'] is None else int(d['m'])
-    s = 0 if d['s'] is None else int(d['s'])
+    h = int(d['h'])
+    m = int(d['m'])
+    s = int(d['s'])
 
     delta = timedelta(hours=h, minutes=m, seconds=s)
     return round(delta.total_seconds())
