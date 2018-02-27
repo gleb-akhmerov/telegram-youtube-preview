@@ -63,7 +63,7 @@ def parse_request(url, length=10, end=None):
     link = parse_youtube_url(url)
 
     if end:
-        if timestamp_to_seconds(end) <= start:
+        if timestamp_to_seconds(end) <= link.start:
             raise ValueError('End position should be greater than start position.')
         length = timestamp_to_seconds(end) - link.start
 
@@ -74,22 +74,29 @@ def parse_request(url, length=10, end=None):
 
 
 def handle_link(bot, update, groupdict):
-    message = update.message
-
     try:
-        request_info = parse_request(**groupdict)
-    except ValueError as e:
-        message.reply_text(str(e))
-        return
+        message = update.message
+        groupdict = {k:v for k,v in groupdict.items() if v is not None}
+        if 'length' in groupdict:
+            groupdict['length'] = int(groupdict['length'])
 
-    logger.info(request_info)
+        try:
+            request_info = parse_request(**groupdict)
+        except ValueError as e:
+            logger.exception(e)
+            message.reply_text(str(e))
+            return
 
-    bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
+        logger.info(request_info)
 
-    file_url = get_videofile_url('https://youtu.be/' + request_info.video_id)
-    downloaded_file = download_clip(file_url, request_info.start, request_info.length)
+        bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
 
-    message.reply_video(downloaded_file, quote=False)
+        file_url = get_videofile_url('https://youtu.be/' + request_info.video_id)
+        downloaded_file = download_clip(file_url, request_info.start, request_info.length)
+
+        message.reply_video(downloaded_file, quote=False)
+    except Exception as e:
+        logger.exception(e)
 
 
 def error_handler(bot, update, error):
