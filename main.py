@@ -2,6 +2,7 @@ import os
 from io import BytesIO
 from time import time
 import logging
+from collections import namedtuple
 
 import youtube_dl
 from ffmpy import FFmpeg
@@ -55,32 +56,40 @@ def download_clip(url, start, length=10):
     return out_file
 
 
+Request = namedtuple('Request', 'video_id start length')
+
+
+def parse_request(url, length=10, end=None):
+    link = parse_youtube_url(url)
+
+    if end:
+        if timestamp_to_seconds(end) <= start:
+            raise ValueError('End position should be greater than start position.')
+        length = timestamp_to_seconds(end) - link.start
+
+    if length <= 0:
+        raise ValueError('Length should be greater than zero')
+
+    return Request(link.id, link.start, length)
+
+
 def handle_link(bot, update, groupdict):
+    message = update.message
+
     try:
-        message = update.message
+        request_info = parse_request(**groupdict)
+    except ValueError as e:
+        message.reply_text(str(e))
+        return
 
-        link_info = parse_youtube_url(groupdict['url'])
+    logger.info(request_info)
 
-        start = link_info.start
-        youtube_url = 'https://youtu.be/' + link_info.id
+    bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
 
-        if groupdict['end']:
-            length = timestamp_to_seconds(groupdict['end']) - start
-        elif groupdict['length']:
-            length = groupdict['length']
-        else:
-            length = 10
+    file_url = get_videofile_url('https://youtu.be/' + request_info.video_id)
+    downloaded_file = download_clip(file_url, request_info.start, request_info.length)
 
-        logger.info('Url: %s, start: %s, length: %s', youtube_url, start, length)
-
-        bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
-
-        url = get_videofile_url(youtube_url)
-        downloaded_file = download_clip(url, start, length)
-
-        message.reply_video(downloaded_file, quote=False)
-    except Exception as e:
-        logger.exception(e)
+    message.reply_video(downloaded_file, quote=False)
 
 
 def error_handler(bot, update, error):
