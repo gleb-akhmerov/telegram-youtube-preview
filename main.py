@@ -10,7 +10,10 @@ from pygogo import Gogo
 from telegram.ext import Updater, RegexHandler
 import telegram
 
-from parser import parse_youtube_url, timestamp_to_seconds, HMS_PATTERN
+import hy
+from parse_interval import parse_interval, ts_to_seconds
+
+from parser import parse_youtube_url, HMS_PATTERN
 from config import TOKEN
 
 
@@ -36,13 +39,13 @@ def get_videofile_url(youtube_url):
     return best_format['url']
 
 
-def download_clip(url, start, length=10):
+def download_clip(url, start, end):
     ext = 'mp4'
     out_file_path = '{name}.{ext}'.format(name=time(), ext=ext)
 
     ff = FFmpeg(
         inputs={url: ['-ss', str(start)]},
-        outputs={out_file_path: ['-t', str(length), '-c', 'copy', '-avoid_negative_ts', '1']},
+        outputs={out_file_path: ['-t', str(end - start), '-c', 'copy', '-avoid_negative_ts', '1']},
         global_options='-v warning'
     )
     logger.info(ff.cmd)
@@ -56,34 +59,32 @@ def download_clip(url, start, length=10):
     return out_file
 
 
-Request = namedtuple('Request', 'video_id start length')
+Request = namedtuple('Request', 'video_id start end')
 
 
-def parse_request(url, length=10, end=None):
+def parse_request(url, end):
     link = parse_youtube_url(url)
 
-    if end:
-        if timestamp_to_seconds(end) <= link.start:
-            raise ValueError('End position should be greater than start position.')
-        length = timestamp_to_seconds(end) - link.start
+    start, end = parse_interval(link.start, end)
+    start = ts_to_seconds(start)
+    end = ts_to_seconds(start)
 
-    if length <= 0:
-        raise ValueError('Length should be greater than zero')
+    if start >= end:
+        raise ValueError('End position should be greater than start position.')
 
-    return Request(link.id, link.start, length)
+    return Request(link.id, start, end)
 
 
 def handle_link(bot, update, groupdict):
     try:
         message = update.message
         groupdict = {k:v for k,v in groupdict.items() if v is not None}
-        if 'length' in groupdict:
-            groupdict['length'] = int(groupdict['length'])
+        if not groupdict['end']:
+            groupdict['end'] = "10"
 
         try:
             request_info = parse_request(**groupdict)
         except ValueError as e:
-            logger.exception(e)
             message.reply_text(str(e))
             return
 
@@ -114,7 +115,7 @@ if __name__ == '__main__':
              '|(?:www\.)?youtube\.com/watch)'
              '\S*[?&]t={}'.format(HMS_PATTERN) +
          ')'
-         '(?:\s+(?:(?P<end>(?=\d+[hms]){})|(?P<length>\d+)))?'.format(HMS_PATTERN)  # optional
+         '(?:\s+(?<end>\S+))?'.format(HMS_PATTERN)  # optional
     )
 
     logger.info(pattern)

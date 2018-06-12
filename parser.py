@@ -15,21 +15,21 @@ HMS_PATTERN = (
 )
 
 
-def timestamp_to_seconds(timestamp):
-    pattern = (
-        '(?:(?P<h>\d+)h)?'
-        '(?:(?P<m>\d+)m)?'
-        '(?:(?P<s>\d+)s)?'
-    )
+# def timestamp_to_seconds(timestamp):
+#     pattern = (
+#         '(?:(?P<h>\d+)h)?'
+#         '(?:(?P<m>\d+)m)?'
+#         '(?:(?P<s>\d+)s)?'
+#     )
 
-    d = re.match(pattern, timestamp).groupdict(default=0)
+#     d = re.match(pattern, timestamp).groupdict(default=0)
 
-    h = int(d['h'])
-    m = int(d['m'])
-    s = int(d['s'])
+#     h = int(d['h'])
+#     m = int(d['m'])
+#     s = int(d['s'])
 
-    delta = timedelta(hours=h, minutes=m, seconds=s)
-    return round(delta.total_seconds())
+#     delta = timedelta(hours=h, minutes=m, seconds=s)
+#     return round(delta.total_seconds())
 
 
 def parse_youtube_url(url):
@@ -40,11 +40,11 @@ def parse_youtube_url(url):
     if 'youtu.be' in f.host:
         return YoutubeLinkInfo(
             id=f.path.segments[0],
-            start=timestamp_to_seconds(f.args['t'])
+            start=f.args['t']
         )
 
     elif 'youtube.com' in f.host:
         return YoutubeLinkInfo(
             id=f.args['v'],
-            start=timestamp_to_seconds(f.args['t'])
+            start=f.args['t']
         )
