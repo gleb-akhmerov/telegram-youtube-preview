@@ -93,7 +93,7 @@ def handle_link(bot, update, groupdict):
         bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
 
         file_url = get_videofile_url('https://youtu.be/' + request_info.video_id)
-        downloaded_file = download_clip(file_url, request_info.start, request_info.length)
+        downloaded_file = download_clip(file_url, request_info.start, request_info.end)
 
         message.reply_video(downloaded_file, quote=False)
     except Exception as e:
