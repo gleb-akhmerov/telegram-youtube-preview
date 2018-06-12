@@ -67,7 +67,7 @@ def parse_request(url, end):
 
     start, end = parse_interval(link.start, end)
     start = ts_to_seconds(start)
-    end = ts_to_seconds(start)
+    end = ts_to_seconds(end)
 
     if start >= end:
         raise ValueError('End position should be greater than start position.')
