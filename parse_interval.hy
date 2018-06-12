@@ -40,9 +40,9 @@
 
 
 (defn ts-to-seconds [ts]
-  (+ (* (get ts "h") 60 60)
-     (* (get ts "m") 60)
-     (get ts "s")))
+  (+ (* ts.h 60 60)
+     (* ts.m 60)
+     ts.s))
 
 
 (setv hms-pattern
