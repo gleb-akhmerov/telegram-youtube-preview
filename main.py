@@ -72,6 +72,9 @@ def parse_request(url, end):
     if start >= end:
         raise ValueError('End position should be greater than start position.')
 
+    if end - start > 10 * 60:
+        raise ValueError('Maximum clip length is 10 minutes')
+
     return Request(link.id, start, end)
 
 
