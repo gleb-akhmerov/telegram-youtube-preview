@@ -81,9 +81,9 @@ def parse_request(url, end):
 def handle_link(bot, update, groupdict):
     try:
         message = update.message
-        groupdict = {k:v for k,v in groupdict.items() if v is not None}
         if not groupdict['end']:
             groupdict['end'] = "10"
+        groupdict = {k:v for k,v in groupdict.items() if v is not None}
 
         try:
             request_info = parse_request(**groupdict)
