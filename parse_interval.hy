@@ -1,27 +1,8 @@
-(require [hy.contrib.walk [let]])
+(require [hy.contrib.walk [let]]
+         [utils [if-let if-not-let]])
 (import [re]
-        [collections [namedtuple]])
-
-
-(defmacro/g! if-let
-  [bindings then-form &optional else-form]
-  (let [g!form (nth bindings 0)
-        g!tst  (nth bindings 1)]
-    `(let [g!temp ~g!tst]
-       (if g!temp
-         (let [~g!form g!temp]
-           ~then-form)
-         ~else-form))))
-
-
-(defmacro if-not-let
-  [bindings then-form &optional else-form]
-  `(if-let ~bindings ~else-form ~then-form))
-
-
-(defn map-vals [f d]
-  (dict-comp k (f v)
-             [[k v] (.items d)]))
+        [collections [namedtuple]]
+        [utils [map-vals]])
 
 
 (setv Timestamp (namedtuple "Timestamp" "h m s")
