@@ -41,11 +41,24 @@ def get_videofile_url(youtube_url):
 
 def download_clip(url, start, end):
     ext = 'mp4'
-    out_file_path = '{name}.{ext}'.format(name=time(), ext=ext)
+    temp_file_path = '{name}.{ext}'.format(name=time(), ext=ext)
+    out_file_path  = '{name}.{ext}'.format(name=time(), ext=ext)
 
     ff = FFmpeg(
         inputs={url: ['-ss', str(start)]},
-        outputs={out_file_path: ['-t', str(end - start), '-c', 'copy', '-avoid_negative_ts', '1']},
+        outputs={temp_file_path: ['-t', str(end - start),
+                                  '-c', 'copy']},
+        global_options='-v warning'
+    )
+    logger.info(ff.cmd)
+    ff.run()
+
+    ff = FFmpeg(
+        inputs={temp_file_path: ['-seek_timestamp',
+                                 '1', '-ss', '0']},
+        outputs={out_file_path: ['-c:v', 'libx264',
+                                 '-preset', 'veryfast',
+                                 '-c:a', 'copy']},
         global_options='-v warning'
     )
     logger.info(ff.cmd)
@@ -54,6 +67,8 @@ def download_clip(url, start, end):
     with open(out_file_path, 'rb') as f:
         out_file = BytesIO(f.read())
         out_file.seek(0)
+
+    os.remove(temp_file_path)
     os.remove(out_file_path)
 
     return out_file
