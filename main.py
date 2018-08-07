@@ -7,7 +7,7 @@ from collections import namedtuple
 import youtube_dl
 from ffmpy import FFmpeg
 from pygogo import Gogo
-from telegram.ext import Updater, RegexHandler
+from telegram.ext import Updater, CommandHandler
 import telegram
 
 import hy
@@ -93,17 +93,19 @@ def parse_request(url, end):
     return Request(link.id, start, end)
 
 
-def handle_link(bot, update, groupdict):
+def handle_link(bot, update, args):
     try:
         message = update.message
-        logger.info("Message: %s, groupdict: %s", message.text, groupdict)
-
-        if not groupdict['end']:
-            groupdict['end'] = "10"
-        groupdict = {k:v for k,v in groupdict.items() if v is not None}
+        logger.info("Message: %s, args: %s", message.text, args)
 
         try:
-            request_info = parse_request(**groupdict)
+            url, end = args
+        except ValueError:
+            message.reply_text("Syntax: /clip url-with-timestamp end-timestamp")
+            return
+
+        try:
+            request_info = parse_request(url, end)
         except ValueError as e:
             message.reply_text(str(e))
             return
@@ -115,7 +117,7 @@ def handle_link(bot, update, groupdict):
         file_url = get_videofile_url('https://youtu.be/' + request_info.video_id)
         downloaded_file = download_clip(file_url, request_info.start, request_info.end)
 
-        bot.send_video(message.chat_id, downloaded_file, caption=message.text)
+        bot.send_video(message.chat_id, downloaded_file, caption='{} {}'.format(url, end))
         try:
             bot.delete_message(message.chat_id, message.message_id)
         except telegram.error.BadRequest:
@@ -132,20 +134,7 @@ if __name__ == '__main__':
     updater = Updater(TOKEN)
     dp = updater.dispatcher
 
-    pattern = (
-        r'.*?'
-         '(?P<url>'
-             '(https?://)?(youtu\.be/'
-             '|(?:www\.)?youtube\.com/watch)'
-             '\S*[?&]t={}'.format(HMS_PATTERN) +
-         ')'
-         '(?:\s+(?P<end>\S+))?'.format(HMS_PATTERN)  # optional
-    )
-
-    logger.info(pattern)
-
-    dp.add_handler(RegexHandler(pattern, handle_link, pass_groupdict=True))
-
+    dp.add_handler(CommandHandler('clip', handle_link, pass_args=True))
     dp.add_error_handler(error_handler)
 
     updater.start_polling()
