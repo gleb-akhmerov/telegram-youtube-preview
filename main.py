@@ -115,7 +115,11 @@ def handle_link(bot, update, groupdict):
         file_url = get_videofile_url('https://youtu.be/' + request_info.video_id)
         downloaded_file = download_clip(file_url, request_info.start, request_info.end)
 
-        message.reply_video(downloaded_file, quote=False)
+        bot.send_video(message.chat_id, downloaded_file, caption=message.text)
+        try:
+            bot.delete_message(message.chat_id, message.message_id)
+        except telegram.error.BadRequest:
+            pass  # can't delete, ignore
     except Exception as e:
         logger.exception(e)
 
