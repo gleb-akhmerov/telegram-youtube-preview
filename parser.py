@@ -36,26 +36,15 @@ def parse_youtube_url(url):
     """Extracts id and timestamp from a youtube url"""
 
     f = furl(url)
-    if f.host is None:
-        raise ValueError('Unknown URL', url)
 
     if 'youtu.be' in f.host:
-        try:
-            return YoutubeLinkInfo(
-                id=f.path.segments[0],
-                start=f.args['t']
-            )
-        except KeyError:
-            raise ValueError('"youtu.be" URL should have a "t" parameter', url)
+        return YoutubeLinkInfo(
+            id=f.path.segments[0],
+            start=f.args['t']
+        )
 
     elif 'youtube.com' in f.host:
-        try:
-            return YoutubeLinkInfo(
-                id=f.args['v'],
-                start=f.args['t']
-            )
-        except KeyError:
-            raise ValueError('"youtube.com" URL should have parameters "t" and "v"', url)
-
-    else:
-        raise ValueError('Not a YouTube URL', url)
+        return YoutubeLinkInfo(
+            id=f.args['v'],
+            start=f.args['t']
+        )
