@@ -139,7 +139,7 @@ if __name__ == '__main__':
              '|(?:www\.)?youtube\.com/watch)'
              '\S*[?&]t={}'.format(HMS_PATTERN) +
          ')'
-         '(?:\s+(?P<end>\S+))?'.format(HMS_PATTERN)  # optional
+         '\s+(?P<end>\S+)'.format(HMS_PATTERN)
     )
 
     logger.info(pattern)
