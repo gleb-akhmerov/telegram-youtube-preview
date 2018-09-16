@@ -3,12 +3,14 @@ from io import BytesIO
 from time import time
 import logging
 from collections import namedtuple
+from functools import partial
 
 import youtube_dl
 from ffmpy import FFmpeg
 from pygogo import Gogo
 from telegram.ext import Updater, RegexHandler
 import telegram
+from cachetools import TTLCache
 
 import hy
 from parse_interval import parse_interval, ts_to_seconds
@@ -93,7 +95,7 @@ def parse_request(url, end):
     return Request(link.id, start, end)
 
 
-def handle_link(bot, update, groupdict):
+def handle_link(bot, update, groupdict, last_messages):
     try:
         message = update.message
         logger.info("Message: %s, groupdict: %s", message.text, groupdict)
@@ -115,7 +117,9 @@ def handle_link(bot, update, groupdict):
         file_url = get_videofile_url('https://youtu.be/' + request_info.video_id)
         downloaded_file = download_clip(file_url, request_info.start, request_info.end)
 
-        bot.send_video(message.chat_id, downloaded_file, reply_to_message_id=message.message_id)
+        video_mes = bot.send_video(message.chat_id, downloaded_file, reply_to_message_id=message.message_id)
+
+        last_messages[(message.chat.id, message.message_id)] = video_mes.message_id
     except Exception as e:
         logger.exception(e)
 
@@ -140,7 +144,9 @@ if __name__ == '__main__':
 
     logger.info(pattern)
 
-    dp.add_handler(RegexHandler(pattern, handle_link, pass_groupdict=True))
+    dp.add_handler(RegexHandler(pattern,
+                                partial(handle_link, last_messages=TTLCache(maxsize=1000, ttl=86400)),
+                                pass_groupdict=True))
 
     dp.add_error_handler(error_handler)
 
