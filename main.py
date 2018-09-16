@@ -9,6 +9,7 @@ import youtube_dl
 from ffmpy import FFmpeg
 from pygogo import Gogo
 from telegram.ext import Updater, RegexHandler
+from telegram import InputMediaVideo
 import telegram
 from cachetools import TTLCache
 
@@ -120,6 +121,44 @@ def handle_link(bot, update, groupdict, last_messages):
         logger.exception(e)
 
 
+def handle_link_edit(bot, update, groupdict, last_messages):
+    try:
+        message = update.edited_message
+        logger.info("Message: %s, groupdict: %s", message.text, groupdict)
+
+        try:
+            video_mes_id = last_messages[(message.chat.id, message.message_id)]
+        except KeyError:
+            know_message = False
+        else:
+            know_message = True
+
+        try:
+            request_info = parse_request(**groupdict)
+        except ValueError as e:
+            if know_message:
+                bot.edit_message_caption(message.chat.id, video_mes_id, caption=str(e))
+            else:
+                message.reply_text(str(e))
+            return
+
+        logger.info(request_info)
+
+        bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
+
+        file_url = get_videofile_url('https://youtu.be/' + request_info.video_id)
+        downloaded_file = download_clip(file_url, request_info.start, request_info.end)
+
+        if know_message:
+            bot.edit_message_media(message.chat.id, video_mes_id, media=InputMediaVideo(downloaded_file))
+        else:
+            video_mes = bot.send_video(message.chat_id, downloaded_file, reply_to_message_id=message.message_id)
+
+            last_messages[(message.chat.id, message.message_id)] = video_mes.message_id
+    except Exception as e:
+        logger.exception(e)
+
+
 def error_handler(bot, update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
 
@@ -140,9 +179,16 @@ if __name__ == '__main__':
 
     logger.info(pattern)
 
+    last_messages = TTLCache(maxsize=1000, ttl=86400)
+
     dp.add_handler(RegexHandler(pattern,
-                                partial(handle_link, last_messages=TTLCache(maxsize=1000, ttl=86400)),
+                                partial(handle_link, last_messages=last_messages),
                                 pass_groupdict=True))
+    dp.add_handler(RegexHandler(pattern,
+                                partial(handle_link_edit, last_messages=last_messages),
+                                pass_groupdict=True,
+                                message_updates=False,
+                                edited_updates=True))
 
     dp.add_error_handler(error_handler)
 
