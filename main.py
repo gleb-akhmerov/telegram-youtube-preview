@@ -100,10 +100,6 @@ def handle_link(bot, update, groupdict, last_messages):
         message = update.message
         logger.info("Message: %s, groupdict: %s", message.text, groupdict)
 
-        if not groupdict['end']:
-            groupdict['end'] = "10"
-        groupdict = {k:v for k,v in groupdict.items() if v is not None}
-
         try:
             request_info = parse_request(**groupdict)
         except ValueError as e:
