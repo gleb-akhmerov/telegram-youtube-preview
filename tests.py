@@ -3,7 +3,7 @@ from collections import namedtuple
 from parser import parse_youtube_url, YoutubeLinkInfo
 
 import hy
-from parse_interval import str_to_ts, Timestamp
+from parse_interval import str_to_ts, Timestamp, colons_to_ts
 
 
 def test_youtube_url_parsing():
@@ -30,3 +30,23 @@ def test_hms_timestamp_parsing():
 
     for timestamp, expected in test_cases:
         assert expected == str_to_ts(timestamp)
+
+
+def test_colon_timestamp_parsing():
+    test_cases = [
+        [   '3:52', Timestamp(0, 3, 52) ],
+
+        [   '5:00', Timestamp(0, 5, 0)  ],
+        [    '5:0', Timestamp(0, 5, 0)  ],
+
+        [  '0:111', Timestamp(0, 0, 111)],
+        [   ':111', Timestamp(0, 0, 111)],
+
+        ['1:00:00', Timestamp(1, 0, 0)  ],
+        [  '1:0:0', Timestamp(1, 0, 0)  ],
+
+        [ '2:32:6', Timestamp(2, 32, 6) ],
+    ]
+
+    for timestamp, expected in test_cases:
+        assert expected == colons_to_ts(timestamp)
