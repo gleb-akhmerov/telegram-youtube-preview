@@ -1,6 +1,6 @@
 (require [hy.contrib.walk [let]]
          [utils [if-let if-not-let]])
-(import [re]
+(import re
         [collections [namedtuple]]
         [utils [map-vals]])
 
