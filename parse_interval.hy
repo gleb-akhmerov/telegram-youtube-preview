@@ -2,7 +2,10 @@
          [utils [if-let if-not-let]])
 (import re
         [collections [namedtuple]]
-        [utils [map-vals]])
+        [utils [map-vals]]
+        [relang [seq named maybe number char-class ahead
+                 start :as line-start
+                 end :as line-end]])
 
 
 (setv Timestamp (namedtuple "Timestamp" "h m s")
@@ -11,13 +14,13 @@
 
 
 (defn str-to-ts [s]
-  (if-let [m (re.match (+ "^" hms-pattern "$") s)]
+  (if-let [m (re.match (seq line-start hms-pattern line-end) s)]
     (Timestamp #** (map-vals int (.groupdict m :default 0)))
     (raise ValueError)))
 
 
 (defn colons-to-ts [s]
-  (if-let [m (re.match (+ "^" colons-pattern "$") s)]
+  (if-let [m (re.match (seq line-start colons-pattern line-end) s)]
     (Timestamp #** (map-vals int (.groupdict m :default 0)))
     (raise ValueError)))
 
@@ -33,16 +36,18 @@
 
 
 (setv hms-pattern
-      (+ r"(?=\d+[hms])" ;; require at least one group
-         r"(?:(?P<h>\d+)h)?"
-         r"(?:(?P<m>\d+)m)?"
-         r"(?:(?P<s>\d+)s)?"))
+      (seq
+        (ahead number (char-class "hms")) ;; require at least one group
+        (maybe (named "h" number) "h")
+        (maybe (named "m" number) "m")
+        (maybe (named "s" number) "s")))
 
 
 (setv colons-pattern
-      (+ r"(?:(?P<h>\d+):)?"
-         r"(?P<m>\d+)?:"
-         r"(?P<s>\d+)"))
+      (seq
+        (maybe (named "h" number) ":")
+        (maybe (named "m" number)) ":"
+        (named "s" number)))
 
 
 (defn parse-end [end]
@@ -50,13 +55,13 @@
     (try ["length" (Timestamp 0 0 (int end))]
       (except [ValueError]))
 
-    (if-let [m (re.match (+ r"\+" hms-pattern "$") end)]
+    (if-let [m (re.match (seq r"\+" hms-pattern line-end) end)]
       ["length" (match-to-ts m)])
     
-    (if-let [m (re.match (+ "^" hms-pattern "$") end)]
+    (if-let [m (re.match (seq line-start hms-pattern line-end) end)]
       ["end" (match-to-ts m)])
 
-    (if-let [m (re.match (+ r"\.\." hms-pattern "$") end)]
+    (if-let [m (re.match (seq r"\.\." hms-pattern line-end) end)]
       ["ellipsis-end" (match-to-ts m)])
 
     (raise (ValueError ["don't know how to parse" end]))))
@@ -97,7 +102,7 @@
 
 
 (defn parse-interval [start end]
-  (if-not-let [m (re.match (+ "^" hms-pattern "$") start)]
+  (if-not-let [m (re.match (seq line-start hms-pattern line-start) start)]
     (raise (ValueError ["not a valid HMS-pattern" start]))
     (let [s (match-to-ts m)]
       (setv [kind e] (parse-end end))
