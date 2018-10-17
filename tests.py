@@ -1,29 +1,32 @@
 from collections import namedtuple
 
-from parser import parse_youtube_url, timestamp_to_seconds, YoutubeLinkInfo
+from parser import parse_youtube_url, YoutubeLinkInfo
+
+import hy
+from parse_interval import str_to_ts, Timestamp
 
 
-def test_extracting():
+def test_youtube_url_parsing():
     test_cases = [
         ['https://youtu.be/urOhWPAS8OI?t=1h18m18s',
-         YoutubeLinkInfo(id='urOhWPAS8OI', start=4698)],
+         YoutubeLinkInfo(id='urOhWPAS8OI', start='1h18m18s')],
 
         ['https://www.youtube.com/watch?v=urOhWPAS8OI&feature=youtu.be&t=1h18m18s',
-         YoutubeLinkInfo(id='urOhWPAS8OI', start=4698)],
+         YoutubeLinkInfo(id='urOhWPAS8OI', start='1h18m18s')],
     ]
 
     for url, expected in test_cases:
         assert expected == parse_youtube_url(url)
 
 
-def test_request_parsing():
+def test_hms_timestamp_parsing():
     test_cases = [
-        [  '3m52s',  232],
-        [     '5m',  300],
-        [   '111s',  111],
-        [     '1h', 3600],
-        ['2h32m6s', 9126],
+        [  '3m52s', Timestamp(0, 3, 52) ],
+        [     '5m', Timestamp(0, 5, 0)  ],
+        [   '111s', Timestamp(0, 0, 111)],
+        [     '1h', Timestamp(1, 0, 0)  ],
+        ['2h32m6s', Timestamp(2, 32, 6) ],
     ]
 
     for timestamp, expected in test_cases:
-        assert expected == timestamp_to_seconds(timestamp)
+        assert expected == str_to_ts(timestamp)
