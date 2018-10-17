@@ -16,6 +16,12 @@
     (raise ValueError)))
 
 
+(defn colons-to-ts [s]
+  (if-let [m (re.match (+ "^" colons-pattern "$") s)]
+    (Timestamp #** (map-vals int (.groupdict m :default 0)))
+    (raise ValueError)))
+
+
 (defn match-to-ts [m]
   (Timestamp #** (map-vals int (.groupdict m :default 0))))
 
@@ -31,6 +37,12 @@
          r"(?:(?P<h>\d+)h)?"
          r"(?:(?P<m>\d+)m)?"
          r"(?:(?P<s>\d+)s)?"))
+
+
+(setv colons-pattern
+      (+ r"(?:(?P<h>\d+):)?"
+         r"(?P<m>\d+)?:"
+         r"(?P<s>\d+)"))
 
 
 (defn parse-end [end]
