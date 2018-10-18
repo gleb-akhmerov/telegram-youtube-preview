@@ -18,5 +18,5 @@
 
 
 (defn map-vals [f d]
-  (dict-comp k (f v)
-             [[k v] (.items d)]))
+  (dfor [k v] (.items d)
+        [k (f v)]))
