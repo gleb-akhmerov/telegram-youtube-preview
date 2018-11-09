@@ -102,7 +102,7 @@
 
 
 (defn parse-interval [start end]
-  (if-not-let [m (re.match (seq line-start hms-pattern line-start) start)]
+  (if-not-let [m (re.match (seq line-start hms-pattern line-end) start)]
     (raise (ValueError ["not a valid HMS-pattern" start]))
     (let [s (match-to-ts m)]
       (setv [kind e] (parse-end end))
