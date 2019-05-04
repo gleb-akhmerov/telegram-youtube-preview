@@ -12,7 +12,7 @@ from telegram import InputMediaVideo
 import telegram
 from cachetools import TTLCache
 
-from parse import parse_request
+from parse import parse_request, request_to_start_timestamp_url
 from config import TOKEN
 
 
@@ -93,7 +93,9 @@ def handle_message(bot, update, last_messages):
         file_url = get_videofile_url('https://youtu.be/' + request.youtube_id)
         downloaded_file = download_clip(file_url, request.start, request.end)
 
-        video_mes = bot.send_video(message.chat_id, downloaded_file, reply_to_message_id=message.message_id)
+        video_mes = bot.send_video(message.chat_id, downloaded_file,
+                                   reply_to_message_id=message.message_id,
+                                   caption=request_to_start_timestamp_url(request))
 
         last_messages[(message.chat.id, message.message_id)] = video_mes.message_id
     except Exception as e:
@@ -131,9 +133,15 @@ def handle_message_edit(bot, update, last_messages):
         downloaded_file = download_clip(file_url, request.start, request.end)
 
         if know_message:
-            bot.edit_message_media(message.chat.id, video_mes_id, media=InputMediaVideo(downloaded_file))
+            bot.edit_message_media(message.chat.id, video_mes_id,
+                                   media=InputMediaVideo(
+                                       downloaded_file,
+                                       caption=request_to_start_timestamp_url(request)
+                                   ))
         else:
-            video_mes = bot.send_video(message.chat_id, downloaded_file, reply_to_message_id=message.message_id)
+            video_mes = bot.send_video(message.chat_id, downloaded_file,
+                                       reply_to_message_id=message.message_id,
+                                       caption=request_to_start_timestamp_url(request))
 
             last_messages[(message.chat.id, message.message_id)] = video_mes.message_id
     except Exception as e:

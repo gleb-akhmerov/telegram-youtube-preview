@@ -21,7 +21,7 @@ class Timestamp:
     
 
 def is_youtube_url(possible_yt_video_url: str) -> bool:
-    return bool(re.match(r'(https?://)?((www\.)?youtube\.com|youtu\.be)\b', possible_yt_video_url))    
+    return bool(re.match(r'(https?://)?((www\.)?youtube\.com|youtu\.be)\b', possible_yt_video_url))
 
 
 def youtube_url_as_dict(yt_url: str) -> Dict[str, str]:
@@ -117,6 +117,20 @@ def seconds_to_ts(val: int) -> Timestamp:
     left, s = divmod(val,  60)
     h, m    = divmod(left, 60)
     return Timestamp(h, m, s)
+
+
+def ts_to_hms(ts: Timestamp) -> str:
+    return (
+          (str(ts.h) + 'h' if ts.h > 0 else '')
+        + (str(ts.m) + 'm' if ts.m > 0 else '')
+        + (str(ts.s) + 's' if ts.s > 0 else '')
+    )
+
+
+def request_to_start_timestamp_url(r: Request) -> str:
+    start_hms = ts_to_hms(seconds_to_ts(s))
+    return ('https://youtu.be/' + request.youtube_id
+            + ('?t=' + start_hms if start_hms else ''))
 
 
 def merge_ellipsis(s: int, e: int) -> Optional[int]:
