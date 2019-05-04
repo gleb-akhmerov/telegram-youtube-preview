@@ -7,12 +7,14 @@ verify_ssl = true
 
 [packages]
 python-telegram-bot = "==11.1.0"
-hy = "==0.15.0"
 youtube-dl = "*"
 ffmpy = "==0.2.2"
 furl = "==1.0.1"
 pygogo = "==0.12.0"
 cachetools = "==2.1.0"
+dataclasses = "==0.6"
+funcy = "==1.11"
+pylint = "==2.3.1"
 
 [requires]
 python_version = "3.6"
