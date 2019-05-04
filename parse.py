@@ -128,8 +128,8 @@ def ts_to_hms(ts: Timestamp) -> str:
 
 
 def request_to_start_timestamp_url(r: Request) -> str:
-    start_hms = ts_to_hms(seconds_to_ts(s))
-    return ('https://youtu.be/' + request.youtube_id
+    start_hms = ts_to_hms(seconds_to_ts(r.start))
+    return ('https://youtu.be/' + r.youtube_id
             + ('?t=' + start_hms if start_hms else ''))
 
 
