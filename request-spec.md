@@ -1,6 +1,6 @@
 # `request`
 is a string of one of the following forms:
-- `youtube-url-with-hms` `space` `end`
+- `youtube-url-with-t-start` `space` `end`
 - `youtube-url` `space` `start` `space` `end`
 
 
@@ -17,8 +17,12 @@ is a URL, which has:
   - the "v" query parameter, otherwise
 
 
-## `youtube-url-with-hms`
-is a `youtube-url` which has the "t" query parameter which is a `hms`.
+## `youtube-url-with-t-start`
+is a `youtube-url` which has the "t" query parameter which is a `t-start`.
+
+
+## `t-start`
+is an absolute timestamp in the form of either a `hms` or a `number`.
 
 
 ## `start`

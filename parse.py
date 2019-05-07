@@ -75,18 +75,31 @@ def match_to_seconds(m):
     return hms_to_seconds(**walk_values(int, m.groupdict(default='0')))
 
 
-def parse_start(s: str) -> Optional[int]:
+def match_int(s: str) -> Optional[int]:
     try:
         return int(s)
     except ValueError:
-        pass
+        return None
 
-    found = (   re.search(r'^' + HMS_PATTERN    + r'$', s)
-             or re.search(r'^' + COLONS_PATTERN + r'$', s))
+
+def match_time_pattern(time_pattern: str, s: str) -> Optional[int]:
+    found = re.search(r'^' + time_pattern + r'$', s)
     if found:
         return match_to_seconds(found)
+    else:
+        return None
 
-    return None
+
+def parse_start(s: str) -> Optional[int]:
+    return (match_int(s)
+            or match_time_pattern(HMS_PATTERN, s)
+            or match_time_pattern(COLONS_PATTERN, s))
+
+
+def parse_t_start(s: str) -> Optional[int]:
+    return (match_int(s)
+            or match_time_pattern(HMS_PATTERN, s))
+
 
 
 def parse_end(s: str) -> Optional[Tuple[str, int]]:
@@ -169,7 +182,10 @@ def parse_request(s: str) -> Optional[Request]:
             return None
 
         youtube_id = yt_dict['v']
-        maybe_start = yt_dict['t']
+
+        start = parse_t_start(yt_dict['t'])
+        if not start:
+            return None
 
     elif len(tokens) == 3:
         maybe_yt_url, maybe_start, maybe_end = tokens
@@ -182,12 +198,12 @@ def parse_request(s: str) -> Optional[Request]:
             return None
 
         youtube_id = yt_dict['v']
+
+        start = parse_start(maybe_start)
+        if not start:
+            return None
         
     else:
-        return None
-
-    start = parse_start(maybe_start)
-    if not start:
         return None
 
     raw_end = parse_end(maybe_end)
