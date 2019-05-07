@@ -1,4 +1,4 @@
-from new_parse import is_youtube_url, youtube_url_as_dict, parse_start, hms_to_seconds, parse_request, Request
+from parse import is_youtube_url, youtube_url_as_dict, parse_start, hms_to_seconds, parse_request, Request
 
 
 def test_is_youtube_url():
@@ -90,10 +90,11 @@ def test_parse_request():
                  hms_to_seconds(1, 20, 18),
                  hms_to_seconds(1, 20, 40))),
 
-        ("https://youtu.be/C0DPdy98e4c?t=1h20m18s ..5s",
-         Request("C0DPdy98e4c",
-                 hms_to_seconds(1, 20, 18),
-                 hms_to_seconds(1, 20,  5))),
+        # TODO: test that this raises an exception
+        # ("https://youtu.be/C0DPdy98e4c?t=1h20m18s ..5s",
+        #  Request("C0DPdy98e4c",
+        #          hms_to_seconds(1, 20, 18),
+        #          hms_to_seconds(1, 20,  5))),
 
         ("https://youtu.be/C0DPdy98e4c?t=1h20m18s 10",
          Request("C0DPdy98e4c",
@@ -114,6 +115,8 @@ def test_parse_request():
          Request("C0DPdy98e4c",
                  4818,
                  4828)),
+
+        # TODO: test that `youtube-link` can only have a `t-start`
     ]
 
     for inp, out in cases:
