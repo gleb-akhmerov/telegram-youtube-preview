@@ -90,19 +90,19 @@ def match_time_pattern(time_pattern: str, s: str) -> Optional[int]:
         return None
 
 
-def parse_start(s: str) -> Optional[int]:
+def match_start(s: str) -> Optional[int]:
     return (match_int(s)
             or match_time_pattern(HMS_PATTERN, s)
             or match_time_pattern(COLONS_PATTERN, s))
 
 
-def parse_t_start(s: str) -> Optional[int]:
+def match_t_start(s: str) -> Optional[int]:
     return (match_int(s)
             or match_time_pattern(HMS_PATTERN, s))
 
 
 
-def parse_end(s: str) -> Optional[Tuple[str, int]]:
+def match_end(s: str) -> Optional[Tuple[str, int]]:
     try:
         return ('relative', int(s))
     except ValueError:
@@ -169,7 +169,7 @@ def raw_end_to_absolute(start: int, raw_end: Tuple[str, int]) -> Optional[int]:
         raise ValueError(raw_end)
 
     
-def parse_request(s: str) -> Optional[Request]:
+def match_request(s: str) -> Optional[Request]:
     tokens = s.split()
     if len(tokens) == 2:
         maybe_yt_url_with_hms, maybe_end = tokens
@@ -183,7 +183,7 @@ def parse_request(s: str) -> Optional[Request]:
 
         youtube_id = yt_dict['v']
 
-        start = parse_t_start(yt_dict['t'])
+        start = match_t_start(yt_dict['t'])
         if not start:
             return None
 
@@ -199,14 +199,14 @@ def parse_request(s: str) -> Optional[Request]:
 
         youtube_id = yt_dict['v']
 
-        start = parse_start(maybe_start)
+        start = match_start(maybe_start)
         if not start:
             return None
         
     else:
         return None
 
-    raw_end = parse_end(maybe_end)
+    raw_end = match_end(maybe_end)
     if not raw_end:
         return None
 

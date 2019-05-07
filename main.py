@@ -12,7 +12,7 @@ from telegram import InputMediaVideo
 import telegram
 from cachetools import TTLCache
 
-from parse import parse_request, request_to_start_timestamp_url
+from parse import match_request, request_to_start_timestamp_url
 from config import TOKEN
 
 
@@ -78,7 +78,7 @@ def handle_message(bot, update, last_messages):
         message = update.message
 
         try:
-            request = parse_request(message.text)
+            request = match_request(message.text)
         except ValueError as e:
             message.reply_text(str(e))
             return
@@ -114,7 +114,7 @@ def handle_message_edit(bot, update, last_messages):
             know_message = True
 
         try:
-            request = parse_request(message.text)
+            request = match_request(message.text)
         except ValueError as e:
             if know_message:
                 bot.edit_message_caption(message.chat.id, video_mes_id, caption=str(e))
