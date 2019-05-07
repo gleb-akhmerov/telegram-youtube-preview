@@ -1,4 +1,4 @@
-from parse import is_youtube_url, youtube_url_as_dict, parse_start, hms_to_seconds, parse_request, Request
+from parse import is_youtube_url, youtube_url_as_dict, match_start, hms_to_seconds, match_request, Request
 
 
 def test_is_youtube_url():
@@ -71,14 +71,14 @@ def test_youtube_url_as_dict_with_time():
         assert youtube_url_as_dict(u) == {'v': 'Bx51eegLTY8', 't': '2m33s'}
 
 
-def test_parse_start():
-    assert parse_start('1h20m18s') == hms_to_seconds(1, 20, 18)
-    assert parse_start('1:20:18')  == hms_to_seconds(1, 20, 18)
-    assert parse_start('20:18')    == hms_to_seconds(0, 20, 18)
-    assert parse_start('4818')     == 4818
+def test_match_start():
+    assert match_start('1h20m18s') == hms_to_seconds(1, 20, 18)
+    assert match_start('1:20:18')  == hms_to_seconds(1, 20, 18)
+    assert match_start('20:18')    == hms_to_seconds(0, 20, 18)
+    assert match_start('4818')     == 4818
 
 
-def test_parse_request():
+def test_match_request():
     cases = [
         ("https://youtu.be/C0DPdy98e4c?t=1h20m18s 1h20m40s",
          Request("C0DPdy98e4c",
@@ -120,4 +120,4 @@ def test_parse_request():
     ]
 
     for inp, out in cases:
-        assert parse_request(inp) == out
+        assert match_request(inp) == out
