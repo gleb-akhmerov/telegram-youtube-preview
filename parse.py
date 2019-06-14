@@ -3,7 +3,7 @@ from typing import Optional, Tuple, Dict
 import re
 
 from furl import furl
-from funcy import project, walk_values
+from funcy import project, walk_values, first
 
 
 @dataclass
@@ -19,6 +19,11 @@ class Timestamp:
     m: int
     s: int
     
+
+
+def first_some(seq):
+    return first(x for x in seq if x is not None)
+
 
 def is_youtube_url(possible_yt_video_url: str) -> bool:
     return bool(re.match(r'(https?://)?((www\.)?youtube\.com|youtu\.be)\b', possible_yt_video_url))
@@ -91,14 +96,14 @@ def match_time_pattern(time_pattern: str, s: str) -> Optional[int]:
 
 
 def match_start(s: str) -> Optional[int]:
-    return (match_int(s)
-            or match_time_pattern(HMS_PATTERN, s)
-            or match_time_pattern(COLONS_PATTERN, s))
+    return first_some([match_int(s),
+                       match_time_pattern(HMS_PATTERN, s),
+                       match_time_pattern(COLONS_PATTERN, s)])
 
 
 def match_t_start(s: str) -> Optional[int]:
-    return (match_int(s)
-            or match_time_pattern(HMS_PATTERN, s))
+    return first_some([match_int(s),
+                       match_time_pattern(HMS_PATTERN, s)])
 
 
 
@@ -108,18 +113,18 @@ def match_end(s: str) -> Optional[Tuple[str, int]]:
     except ValueError:
         pass
 
-    found = (   re.search(r'^\+' +    HMS_PATTERN + r'$', s)
-             or re.search(r'^\+' + COLONS_PATTERN + r'$', s))
+    found = first_some([re.search(r'^\+' +    HMS_PATTERN + r'$', s),
+                        re.search(r'^\+' + COLONS_PATTERN + r'$', s)])
     if found:
         return ('relative', match_to_seconds(found))
 
-    found = (   re.search(r'^\.\.' +    HMS_PATTERN + r'$', s)
-             or re.search(r'^\.\.' + COLONS_PATTERN + r'$', s))
+    found = first_some([re.search(r'^\.\.' +    HMS_PATTERN + r'$', s),
+                        re.search(r'^\.\.' + COLONS_PATTERN + r'$', s)])
     if found:
         return ('ellipsis', match_to_seconds(found))
     
-    found = (   re.search(r'^' +    HMS_PATTERN + r'$', s)
-             or re.search(r'^' + COLONS_PATTERN + r'$', s))
+    found = first_some([re.search(r'^' +    HMS_PATTERN + r'$', s),
+                        re.search(r'^' + COLONS_PATTERN + r'$', s)])
     if found:
         return ('absolute', match_to_seconds(found))
 
@@ -184,7 +189,7 @@ def match_request(s: str) -> Optional[Request]:
         youtube_id = yt_dict['v']
 
         start = match_t_start(yt_dict['t'])
-        if not start:
+        if start is None:
             return None
 
     elif len(tokens) == 3:
@@ -200,18 +205,18 @@ def match_request(s: str) -> Optional[Request]:
         youtube_id = yt_dict['v']
 
         start = match_start(maybe_start)
-        if not start:
+        if start is None:
             return None
         
     else:
         return None
 
     raw_end = match_end(maybe_end)
-    if not raw_end:
+    if raw_end is None:
         return None
 
     end = raw_end_to_absolute(start, raw_end)
-    if not end:
+    if end is None:
         return None
 
     if start >= end:
