@@ -15,6 +15,7 @@ cachetools = "==2.1.0"
 dataclasses = "==0.6"
 funcy = "==1.11"
 pylint = "==2.3.1"
+pytest = "*"
 
 [requires]
 python_version = "3.6"
