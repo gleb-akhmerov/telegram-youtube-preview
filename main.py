@@ -2,21 +2,17 @@ import os
 from io import BytesIO
 from time import time
 import logging
-from collections import namedtuple
 from functools import partial
 
 import youtube_dl
 from ffmpy import FFmpeg
 from pygogo import Gogo
-from telegram.ext import Updater, RegexHandler
+from telegram.ext import Updater, MessageHandler, Filters
 from telegram import InputMediaVideo
 import telegram
 from cachetools import TTLCache
 
-import hy
-from parse_interval import parse_interval, ts_to_seconds
-
-from parser import parse_youtube_url, HMS_PATTERN
+from parse import match_request, request_to_start_timestamp_url
 from config import TOKEN
 
 
@@ -77,54 +73,38 @@ def download_clip(url, start, end):
     return out_file
 
 
-Request = namedtuple('Request', 'video_id start end')
-
-
-def parse_request(url, end):
-    link = parse_youtube_url(url)
-
-    start, end = parse_interval(link.start, end)
-    start = ts_to_seconds(start)
-    end = ts_to_seconds(end)
-
-    if start >= end:
-        raise ValueError('End position should be greater than start position.')
-
-    if end - start > 10 * 60:
-        raise ValueError('Maximum clip length is 10 minutes')
-
-    return Request(link.id, start, end)
-
-
-def handle_link(bot, update, groupdict, last_messages):
+def handle_message(bot, update, last_messages):
     try:
         message = update.message
-        logger.info("Message: %s, groupdict: %s", message.text, groupdict)
 
         try:
-            request_info = parse_request(**groupdict)
+            request = match_request(message.text)
         except ValueError as e:
             message.reply_text(str(e))
             return
+        else:
+            if not request:
+                return
 
-        logger.info(request_info)
+        logger.info("Message: %s, request: %s", message.text, request)
 
         bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
 
-        file_url = get_videofile_url('https://youtu.be/' + request_info.video_id)
-        downloaded_file = download_clip(file_url, request_info.start, request_info.end)
+        file_url = get_videofile_url('https://youtu.be/' + request.youtube_id)
+        downloaded_file = download_clip(file_url, request.start, request.end)
 
-        video_mes = bot.send_video(message.chat_id, downloaded_file, reply_to_message_id=message.message_id)
+        video_mes = bot.send_video(message.chat_id, downloaded_file,
+                                   reply_to_message_id=message.message_id,
+                                   caption=request_to_start_timestamp_url(request))
 
         last_messages[(message.chat.id, message.message_id)] = video_mes.message_id
     except Exception as e:
         logger.exception(e)
 
 
-def handle_link_edit(bot, update, groupdict, last_messages):
+def handle_message_edit(bot, update, last_messages):
     try:
         message = update.edited_message
-        logger.info("Message: %s, groupdict: %s", message.text, groupdict)
 
         try:
             video_mes_id = last_messages[(message.chat.id, message.message_id)]
@@ -134,25 +114,34 @@ def handle_link_edit(bot, update, groupdict, last_messages):
             know_message = True
 
         try:
-            request_info = parse_request(**groupdict)
+            request = match_request(message.text)
         except ValueError as e:
             if know_message:
                 bot.edit_message_caption(message.chat.id, video_mes_id, caption=str(e))
             else:
                 message.reply_text(str(e))
             return
+        else:
+            if not request:
+                return
 
-        logger.info(request_info)
+        logger.info("Message: %s, request: %s", message.text, request)
 
         bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
 
-        file_url = get_videofile_url('https://youtu.be/' + request_info.video_id)
-        downloaded_file = download_clip(file_url, request_info.start, request_info.end)
+        file_url = get_videofile_url('https://youtu.be/' + request.youtube_id)
+        downloaded_file = download_clip(file_url, request.start, request.end)
 
         if know_message:
-            bot.edit_message_media(message.chat.id, video_mes_id, media=InputMediaVideo(downloaded_file))
+            bot.edit_message_media(message.chat.id, video_mes_id,
+                                   media=InputMediaVideo(
+                                       downloaded_file,
+                                       caption=request_to_start_timestamp_url(request)
+                                   ))
         else:
-            video_mes = bot.send_video(message.chat_id, downloaded_file, reply_to_message_id=message.message_id)
+            video_mes = bot.send_video(message.chat_id, downloaded_file,
+                                       reply_to_message_id=message.message_id,
+                                       caption=request_to_start_timestamp_url(request))
 
             last_messages[(message.chat.id, message.message_id)] = video_mes.message_id
     except Exception as e:
@@ -167,28 +156,14 @@ if __name__ == '__main__':
     updater = Updater(TOKEN)
     dp = updater.dispatcher
 
-    pattern = (
-        r'.*?'
-         '(?P<url>'
-             '(https?://)?(youtu\.be/'
-             '|(?:www\.)?youtube\.com/watch)'
-             '\S*[?&]t={}'.format(HMS_PATTERN) +
-         ')'
-         '\s+(?P<end>\S+)'.format(HMS_PATTERN)
-    )
-
-    logger.info(pattern)
-
     last_messages = TTLCache(maxsize=1000, ttl=86400)
 
-    dp.add_handler(RegexHandler(pattern,
-                                partial(handle_link, last_messages=last_messages),
-                                pass_groupdict=True))
-    dp.add_handler(RegexHandler(pattern,
-                                partial(handle_link_edit, last_messages=last_messages),
-                                pass_groupdict=True,
-                                message_updates=False,
-                                edited_updates=True))
+    dp.add_handler(MessageHandler(Filters.text,
+                                  partial(handle_message, last_messages=last_messages)))
+    dp.add_handler(MessageHandler(Filters.text,
+                                  partial(handle_message_edit, last_messages=last_messages),
+                                  message_updates=False,
+                                  edited_updates=True))
 
     dp.add_error_handler(error_handler)
 
