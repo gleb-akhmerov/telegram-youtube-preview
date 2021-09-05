@@ -121,6 +121,11 @@ def test_match_request():
                  0,
                  10)),
 
+        ("https://youtu.be/C0DPdy98e4c full",
+         Request("C0DPdy98e4c",
+                 0,
+                 600)),
+
         # TODO: test that `youtube-link` can only have a `t-start`
     ]
 

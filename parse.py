@@ -18,7 +18,7 @@ class Timestamp:
     h: int
     m: int
     s: int
-    
+
 
 
 def first_some(seq):
@@ -32,13 +32,13 @@ def is_youtube_url(possible_yt_video_url: str) -> bool:
 def youtube_url_as_dict(yt_url: str) -> Dict[str, str]:
     yt_url_with_schema = yt_url if yt_url.startswith('http') else 'https://' + yt_url
     f = furl(yt_url_with_schema)
-    
+
     if f.host.endswith('youtube.com'):
         if str(f.path) == '/watch' and 'v' in f.args:
             return project(f.args, ['v', 't'])
         else:
             return {}
-        
+
     else:  # youtu.be
         if f.path.segments:
             return {
@@ -122,7 +122,7 @@ def match_end(s: str) -> Optional[Tuple[str, int]]:
                         re.search(r'^\.\.' + COLONS_PATTERN + r'$', s)])
     if found:
         return ('ellipsis', match_to_seconds(found))
-    
+
     found = first_some([re.search(r'^' +    HMS_PATTERN + r'$', s),
                         re.search(r'^' + COLONS_PATTERN + r'$', s)])
     if found:
@@ -173,7 +173,7 @@ def raw_end_to_absolute(start: int, raw_end: Tuple[str, int]) -> Optional[int]:
     else:
         raise ValueError(raw_end)
 
-    
+
 def match_request(s: str) -> Optional[Request]:
     tokens = s.split()
     if len(tokens) == 2:
@@ -183,14 +183,21 @@ def match_request(s: str) -> Optional[Request]:
             return None
 
         yt_dict = youtube_url_as_dict(maybe_yt_url_with_hms)
-        if {'v', 't'} != set(yt_dict):
-            return None
 
+        if 'v' not in set(yt_dict):
+            return None
         youtube_id = yt_dict['v']
 
-        start = match_t_start(yt_dict['t'])
-        if start is None:
-            return None
+        if 't' not in set(yt_dict):
+            if maybe_end == 'full':
+                maybe_end = '10:00'
+                start = 0
+            else:
+                return None
+        else:
+            start = match_t_start(yt_dict['t'])
+            if start is None:
+                return None
 
     elif len(tokens) == 3:
         maybe_yt_url, maybe_start, maybe_end = tokens
@@ -207,7 +214,7 @@ def match_request(s: str) -> Optional[Request]:
         start = match_start(maybe_start)
         if start is None:
             return None
-        
+
     else:
         return None
 
@@ -224,6 +231,5 @@ def match_request(s: str) -> Optional[Request]:
 
     if end - start > 10 * 60:
         raise ValueError('Maximum clip length is 10 minutes')
-
 
     return Request(youtube_id, start, end)
