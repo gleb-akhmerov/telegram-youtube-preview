@@ -169,12 +169,14 @@ async def inline_query(inline_query: InlineQuery) -> None:
     try:
         query = inline_query.query
 
-        if query == "":
-            return
-
         try:
             request = match_request(query)
         except ValueError:
+            await bot.answer_inline_query(inline_query.id, [])
+            return
+
+        if request is None:
+            await bot.answer_inline_query(inline_query.id, [])
             return
 
         results = [
@@ -195,14 +197,7 @@ async def inline_query(inline_query: InlineQuery) -> None:
 @dispatcher.chosen_inline_handler(lambda chosen_inline_query: True)
 async def chosen_inline_handler(chosen_inline_query: types.ChosenInlineResult):
     try:
-        query = chosen_inline_query.query
-        if query == "":
-            return
-
-        try:
-            request = match_request(query)
-        except ValueError:
-            return
+        request = match_request(chosen_inline_query.query)
 
         file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id)
         downloaded_file = await download_clip(file_url, request.start, request.end)
