@@ -163,7 +163,7 @@ async def handle_message_edit(message: types.Message):
         logger.exception(e)
 
 
-def make_inline_keyboard(request) -> InlineKeyboardMarkup:
+def make_inline_keyboard(user_id: int, request: Request) -> InlineKeyboardMarkup:
     keyboard = [
         [('-1', -1), ('+1', 1)],
         [('-2', -2), ('+2', 2)],
@@ -179,7 +179,7 @@ def make_inline_keyboard(request) -> InlineKeyboardMarkup:
             [
                 types.InlineKeyboardButton(
                     text,
-                    callback_data=f'{request.youtube_id} {request.start} {request.end} {action}',
+                    callback_data=f'{user_id} {request.youtube_id} {request.start} {request.end} {action}',
                 )
                 for text, action in row
             ]
@@ -213,7 +213,7 @@ async def inline_query(inline_query: InlineQuery) -> None:
                 title="",
                 photo_url="https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id),
                 thumb_url="https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id),
-                reply_markup=make_inline_keyboard(request),
+                reply_markup=make_inline_keyboard(inline_query.from_user.id, request),
                 caption=request_to_query(request),
             ),
         ]
@@ -242,7 +242,11 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
     try:
         await callback_query.answer()
 
-        youtube_id, start, end, action = callback_query.data.split()
+        user_id, youtube_id, start, end, action = callback_query.data.split()
+
+        if callback_query.from_user.id != int(user_id):
+            return
+
         request = Request(youtube_id=youtube_id, start=int(start), end=int(end))
 
         if action == 'send':
@@ -257,7 +261,7 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
             request.end += delta
             await bot.edit_message_caption(
                 inline_message_id=callback_query.inline_message_id,
-                reply_markup=make_inline_keyboard(request),
+                reply_markup=make_inline_keyboard(callback_query.from_user.id, request),
                 caption=request_to_query(request),
             )
     except Exception as e:
