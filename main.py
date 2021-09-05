@@ -164,12 +164,12 @@ async def handle_message_edit(message: types.Message):
 
 
 def make_inline_keyboard(request) -> InlineKeyboardMarkup:
-    actions = [
-        [('+1', 1), ('-1', -1)],
-        [('+2', 2), ('-2', -2)],
-        [('+5', 5), ('-5', -5)],
-        [('+10', 10), ('-10', -10)],
-        [('+30', 30), ('-30', -30)],
+    keyboard = [
+        [('-1', -1), ('+1', 1)],
+        [('-2', -2), ('+2', 2)],
+        [('-5', -5), ('+5', 5)],
+        [('-10', -10), ('+10', 10)],
+        [('-30', -30), ('+30', 30)],
         [('Обрезать', 'send')],
     ]
 
@@ -183,7 +183,7 @@ def make_inline_keyboard(request) -> InlineKeyboardMarkup:
                 )
                 for text, action in row
             ]
-            for row in actions
+            for row in keyboard
         ],
     )
 
