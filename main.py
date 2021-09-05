@@ -133,7 +133,7 @@ async def handle_message_edit(message: types.Message):
             request = match_request(message.text)
         except ValueError as e:
             if know_message:
-                await message.edit_caption(str(e))
+                await bot.edit_message_caption(message.chat.id, video_mes_id, caption=str(e))
             else:
                 await message.answer(str(e))
             return
@@ -149,10 +149,10 @@ async def handle_message_edit(message: types.Message):
         downloaded_file = await download_clip(file_url, request.start, request.end)
 
         if know_message:
-            await message.edit_media(media=InputMediaVideo(
-                downloaded_file,
-                caption=request_to_start_timestamp_url(request)
-            ))
+            await bot.edit_message_media(chat_id=message.chat.id,
+                                         message_id=video_mes_id,
+                                         media=InputMediaVideo(downloaded_file,
+                                                               caption=request_to_start_timestamp_url(request)))
         else:
             video_mes = await bot.send_video(message.chat.id, downloaded_file,
                                              reply_to_message_id=message.message_id,
@@ -187,7 +187,7 @@ async def inline_query(inline_query: InlineQuery) -> None:
                     [InlineKeyboardButton(text="Загружаем...", url=request_to_start_timestamp_url(request))]])
             )
         ]
-        await bot.answer_inline_query(inline_query.id, results, cache_time=60*60*24)
+        await bot.answer_inline_query(inline_query.id, results, cache_time=60 * 60 * 24)
     except Exception as e:
         logger.exception("a")
 
