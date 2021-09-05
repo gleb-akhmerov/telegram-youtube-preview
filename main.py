@@ -240,12 +240,12 @@ async def chosen_inline_handler(chosen_inline_query: types.ChosenInlineResult):
 @dispatcher.callback_query_handler(lambda callback_query: True)
 async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery):
     try:
-        await callback_query.answer()
-
         user_id, youtube_id, start, end, action = callback_query.data.split()
 
         if callback_query.from_user.id != int(user_id):
+            await callback_query.answer(text='You shall not press!')
             return
+        await callback_query.answer()
 
         request = Request(youtube_id=youtube_id, start=int(start), end=int(end))
 
