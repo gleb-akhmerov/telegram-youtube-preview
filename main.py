@@ -250,8 +250,21 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
         request = Request(youtube_id=youtube_id, start=int(start), end=int(end))
 
         if action == 'send':
-            # remove keyboard
-            await bot.edit_message_reply_markup(inline_message_id=callback_query.inline_message_id)
+            await bot.edit_message_caption(
+                inline_message_id=callback_query.inline_message_id,
+                reply_markup=InlineKeyboardMarkup(
+                    row_width=1,
+                    inline_keyboard=[
+                        [
+                            types.InlineKeyboardButton(
+                                'Загружаем...',
+                                url=request_to_start_timestamp_url(request),
+                            )
+                        ]
+                    ],
+                ),
+                caption=request_to_start_timestamp_url(request),
+            )
 
             file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id)
             downloaded_file = await download_clip(file_url, request.start, request.end)
