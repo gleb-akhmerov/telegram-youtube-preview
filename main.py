@@ -17,7 +17,7 @@ from ffmpy import FFmpeg
 from pygogo import Gogo
 
 from config import TOKEN, BOT_CHANNEL_ID
-from parse import match_request, request_to_start_timestamp_url
+from parse import Request, match_request, request_to_start_timestamp_url, first_some, request_to_query
 
 try:
     import ujson as json
@@ -163,6 +163,31 @@ async def handle_message_edit(message: types.Message):
         logger.exception(e)
 
 
+def make_inline_keyboard(request) -> InlineKeyboardMarkup:
+    actions = [
+        [('+1', 1), ('-1', -1)],
+        [('+2', 2), ('-2', -2)],
+        [('+5', 5), ('-5', -5)],
+        [('+10', 10), ('-10', -10)],
+        [('+30', 30), ('-30', -30)],
+        [('Обрезать', 'send')],
+    ]
+
+    return InlineKeyboardMarkup(
+        row_width=1,
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text,
+                    callback_data=f'{request.youtube_id} {request.start} {request.end} {action}',
+                )
+                for text, action in row
+            ]
+            for row in actions
+        ],
+    )
+
+
 @dispatcher.inline_handler()
 async def inline_query(inline_query: InlineQuery) -> None:
     """Handle the inline query."""
@@ -170,7 +195,10 @@ async def inline_query(inline_query: InlineQuery) -> None:
         query = inline_query.query
 
         try:
-            request = match_request(query)
+            request = first_some([
+                match_request(query),
+                match_request(query + ' 10'),
+            ])
         except ValueError:
             await bot.answer_inline_query(inline_query.id, [])
             return
@@ -185,16 +213,16 @@ async def inline_query(inline_query: InlineQuery) -> None:
                 title="",
                 photo_url="https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id),
                 thumb_url="https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id),
-                reply_markup=InlineKeyboardMarkup(row_width=1, inline_keyboard=[
-                    [InlineKeyboardButton(text="Загружаем...", url=request_to_start_timestamp_url(request))]])
-            )
+                reply_markup=make_inline_keyboard(request),
+                caption=request_to_query(request),
+            ),
         ]
         await bot.answer_inline_query(inline_query.id, results, cache_time=60 * 60 * 24)
     except Exception as e:
         logger.exception("a")
 
 
-@dispatcher.chosen_inline_handler(lambda chosen_inline_query: True)
+#@dispatcher.chosen_inline_handler(lambda chosen_inline_query: True)
 async def chosen_inline_handler(chosen_inline_query: types.ChosenInlineResult):
     try:
         request = match_request(chosen_inline_query.query)
@@ -205,7 +233,33 @@ async def chosen_inline_handler(chosen_inline_query: types.ChosenInlineResult):
         await bot.edit_message_media(inline_message_id=chosen_inline_query.inline_message_id,
                                      media=InputMediaVideo(video_mes.video.file_id,
                                                            caption=request_to_start_timestamp_url(request)))
+    except Exception as e:
+        logger.exception("a")
 
+
+@dispatcher.callback_query_handler(lambda callback_query: True)
+async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery):
+    try:
+        await callback_query.answer()
+
+        youtube_id, start, end, action = callback_query.data.split()
+        request = Request(youtube_id=youtube_id, start=int(start), end=int(end))
+
+        if action == 'send':
+            file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id)
+            downloaded_file = await download_clip(file_url, request.start, request.end)
+            video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
+            await bot.edit_message_media(inline_message_id=callback_query.inline_message_id,
+                                         media=InputMediaVideo(video_mes.video.file_id,
+                                                               caption=request_to_start_timestamp_url(request)))
+        else:
+            delta = int(action)
+            request.end += delta
+            await bot.edit_message_caption(
+                inline_message_id=callback_query.inline_message_id,
+                reply_markup=make_inline_keyboard(request),
+                caption=request_to_query(request),
+            )
     except Exception as e:
         logger.exception("a")
 

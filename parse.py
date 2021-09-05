@@ -145,10 +145,24 @@ def ts_to_hms(ts: Timestamp) -> str:
     )
 
 
+def ts_to_columns(ts: Timestamp) -> str:
+    return (
+          (f'{ts.h:02d}' + ':' if ts.h > 0 else '')
+        + f'{ts.m:02d}' + ':'
+        + f'{ts.s:02d}'
+    )
+
+
 def request_to_start_timestamp_url(r: Request) -> str:
     start_hms = ts_to_hms(seconds_to_ts(r.start))
     return ('https://youtu.be/' + r.youtube_id
             + ('?t=' + start_hms if start_hms else ''))
+
+
+def request_to_query(r: Request) -> str:
+    start = ts_to_columns(seconds_to_ts(r.start))
+    end = ts_to_columns(seconds_to_ts(r.end))
+    return f'https://youtu.be/{r.youtube_id} {start} {end}'
 
 
 def merge_ellipsis(s: int, e: int) -> Optional[int]:
