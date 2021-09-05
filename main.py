@@ -3,17 +3,18 @@ from io import BytesIO
 from time import time
 import logging
 from functools import partial
+from uuid import uuid4
 
 import youtube_dl
 from ffmpy import FFmpeg
 from pygogo import Gogo
-from telegram.ext import Updater, MessageHandler, Filters
-from telegram import InputMediaVideo
+from telegram.ext import Updater, MessageHandler, InlineQueryHandler, Filters
+from telegram import InputMediaVideo, InlineQueryResultCachedVideo
 import telegram
 from cachetools import TTLCache
 
 from parse import match_request, request_to_start_timestamp_url
-from config import TOKEN
+from config import TOKEN, BOT_CHANNEL_ID
 
 
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -148,6 +149,38 @@ def handle_message_edit(bot, update, last_messages):
         logger.exception(e)
 
 
+def inline_query(bot, update, bot_channel_id: int) -> None:
+    """Handle the inline query."""
+
+    try:
+        query = update.inline_query.query
+
+        if query == "":
+            return
+
+        try:
+            request = match_request(query)
+        except ValueError:
+            return
+
+        file_url = get_videofile_url('https://youtu.be/' + request.youtube_id)
+        downloaded_file = download_clip(file_url, request.start, request.end)
+
+        video_mes = bot.send_video(bot_channel_id, downloaded_file)
+        results = [
+            InlineQueryResultCachedVideo(
+                id=str(uuid4()),
+                title=request_to_start_timestamp_url(request),
+                video_file_id=video_mes.video.file_id,
+                caption=request_to_start_timestamp_url(request),
+            ),
+        ]
+        update.inline_query.answer(results, cache_time=60*60*24)
+
+    except Exception as e:
+        logger.exception("a")
+
+
 def error_handler(bot, update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
 
@@ -164,6 +197,7 @@ if __name__ == '__main__':
                                   partial(handle_message_edit, last_messages=last_messages),
                                   message_updates=False,
                                   edited_updates=True))
+    dp.add_handler(InlineQueryHandler(partial(inline_query, bot_channel_id=BOT_CHANNEL_ID)))
 
     dp.add_error_handler(error_handler)
 
