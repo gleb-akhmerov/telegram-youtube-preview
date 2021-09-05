@@ -250,6 +250,9 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
         request = Request(youtube_id=youtube_id, start=int(start), end=int(end))
 
         if action == 'send':
+            # remove keyboard
+            await bot.edit_message_reply_markup(inline_message_id=callback_query.inline_message_id)
+
             file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id)
             downloaded_file = await download_clip(file_url, request.start, request.end)
             video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
