@@ -43,7 +43,7 @@ logger = Gogo(
 ).logger
 
 
-async def get_videofile_url(youtube_url):
+async def get_videofile_url(youtube_url: str, small=False) -> str:
     options = dict(quiet=True)
     with youtube_dl.YoutubeDL(options) as ydl:
         r = ydl.extract_info(youtube_url, download=False)
@@ -53,7 +53,10 @@ async def get_videofile_url(youtube_url):
                 and x['acodec'] != 'none')
 
     mp4_formats_with_audio = list(filter(is_mp4_with_audio, r['formats']))
-    best_format = mp4_formats_with_audio[-1]
+    if small:
+        best_format = mp4_formats_with_audio[0]
+    else:
+        best_format = mp4_formats_with_audio[-1]
     return best_format['url']
 
 
@@ -170,6 +173,7 @@ def make_inline_keyboard(user_id: int, request: Request) -> InlineKeyboardMarkup
         [('-5', -5), ('+5', 5)],
         [('-10', -10), ('+10', 10)],
         [('-30', -30), ('+30', 30)],
+        [('Предпросмотр', 'preview')],
         [('Обрезать', 'send')],
     ]
 
@@ -245,7 +249,6 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
         if callback_query.from_user.id != int(user_id):
             await callback_query.answer(text='You shall not press!')
             return
-        await callback_query.answer()
 
         request = Request(youtube_id=youtube_id, start=int(start), end=int(end))
 
@@ -272,14 +275,28 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
             await bot.edit_message_media(inline_message_id=callback_query.inline_message_id,
                                          media=InputMediaVideo(video_mes.video.file_id,
                                                                caption=request_to_start_timestamp_url(request)))
+        elif action == 'preview':
+            file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id, small=True)
+            downloaded_file = await download_clip(file_url, request.start, request.end)
+            video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
+            await bot.edit_message_media(
+                inline_message_id=callback_query.inline_message_id,
+                media=InputMediaVideo(
+                    video_mes.video.file_id,
+                    caption=request_to_query(request),
+                ),
+                reply_markup=make_inline_keyboard(callback_query.from_user.id, request),
+            )
         else:
             delta = int(action)
             request.end += delta
+
             await bot.edit_message_caption(
                 inline_message_id=callback_query.inline_message_id,
                 reply_markup=make_inline_keyboard(callback_query.from_user.id, request),
                 caption=request_to_query(request),
             )
+        await callback_query.answer()
     except Exception as e:
         logger.exception("a")
 
