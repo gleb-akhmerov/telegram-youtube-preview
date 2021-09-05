@@ -1,21 +1,39 @@
+import asyncio
+import logging
 import os
 from io import BytesIO
 from time import time
-import logging
-from functools import partial
 from uuid import uuid4
 
+import aiogram
 import youtube_dl
+from aiogram import Bot, types
+from aiogram.dispatcher import Dispatcher, filters
+from aiogram.types import InputMediaVideo, InlineQuery, InlineQueryResultPhoto, InlineKeyboardMarkup, \
+    InlineKeyboardButton
+from aiogram.utils import executor
+from cachetools import TTLCache
 from ffmpy import FFmpeg
 from pygogo import Gogo
-from telegram.ext import Updater, MessageHandler, InlineQueryHandler, Filters
-from telegram import InputMediaVideo, InlineQueryResultCachedVideo
-import telegram
-from cachetools import TTLCache
 
-from parse import match_request, request_to_start_timestamp_url
 from config import TOKEN, BOT_CHANNEL_ID
+from parse import match_request, request_to_start_timestamp_url
 
+try:
+    import ujson as json
+except ImportError:
+    import json as json
+
+try:
+    import uvloop
+
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+except ImportError:
+    pass
+
+loop = asyncio.get_event_loop()
+bot = Bot(token=TOKEN, loop=loop)
+dispatcher = Dispatcher(bot)
 
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = Gogo(
@@ -25,24 +43,24 @@ logger = Gogo(
 ).logger
 
 
-def get_videofile_url(youtube_url):
+async def get_videofile_url(youtube_url):
     options = dict(quiet=True)
     with youtube_dl.YoutubeDL(options) as ydl:
         r = ydl.extract_info(youtube_url, download=False)
 
     def is_mp4_with_audio(x):
         return (x['ext'] == 'mp4'
-            and x['acodec'] != 'none')
+                and x['acodec'] != 'none')
 
     mp4_formats_with_audio = list(filter(is_mp4_with_audio, r['formats']))
     best_format = mp4_formats_with_audio[-1]
     return best_format['url']
 
 
-def download_clip(url, start, end):
+async def download_clip(url, start, end):
     ext = 'mp4'
-    temp_file_path = '{name}.{ext}'.format(name=time(), ext=ext)
-    out_file_path  = '{name}.{ext}'.format(name=time(), ext=ext)
+    temp_file_path = '{name}.temp.{ext}'.format(name=time(), ext=ext)
+    out_file_path = '{name}.{ext}'.format(name=time(), ext=ext)
 
     ff = FFmpeg(
         inputs={url: ['-ss', str(start)]},
@@ -74,10 +92,9 @@ def download_clip(url, start, end):
     return out_file
 
 
-def handle_message(bot, update, last_messages):
+@dispatcher.message_handler(filters.Text(contains="https", ignore_case=False))
+async def handle_message(message: types.Message):
     try:
-        message = update.message
-
         try:
             request = match_request(message.text)
         except ValueError as e:
@@ -89,24 +106,22 @@ def handle_message(bot, update, last_messages):
 
         logger.info("Message: %s, request: %s", message.text, request)
 
-        bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
+        await bot.send_chat_action(message.chat.id, aiogram.types.chat.ChatActions.UPLOAD_VIDEO)
 
-        file_url = get_videofile_url('https://youtu.be/' + request.youtube_id)
-        downloaded_file = download_clip(file_url, request.start, request.end)
-
-        video_mes = bot.send_video(message.chat_id, downloaded_file,
-                                   reply_to_message_id=message.message_id,
-                                   caption=request_to_start_timestamp_url(request))
+        file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id)
+        downloaded_file = await download_clip(file_url, request.start, request.end)
+        video_mes = await bot.send_video(message.chat.id, downloaded_file,
+                                         reply_to_message_id=message.message_id,
+                                         caption=request_to_start_timestamp_url(request))
 
         last_messages[(message.chat.id, message.message_id)] = video_mes.message_id
     except Exception as e:
         logger.exception(e)
 
 
-def handle_message_edit(bot, update, last_messages):
+@dispatcher.edited_message_handler(filters.Text(contains="https", ignore_case=False))
+async def handle_message_edit(message: types.Message):
     try:
-        message = update.edited_message
-
         try:
             video_mes_id = last_messages[(message.chat.id, message.message_id)]
         except KeyError:
@@ -118,9 +133,9 @@ def handle_message_edit(bot, update, last_messages):
             request = match_request(message.text)
         except ValueError as e:
             if know_message:
-                bot.edit_message_caption(message.chat.id, video_mes_id, caption=str(e))
+                await message.edit_caption(str(e))
             else:
-                message.reply_text(str(e))
+                await message.answer(str(e))
             return
         else:
             if not request:
@@ -128,32 +143,31 @@ def handle_message_edit(bot, update, last_messages):
 
         logger.info("Message: %s, request: %s", message.text, request)
 
-        bot.send_chat_action(message.chat.id, telegram.ChatAction.UPLOAD_VIDEO)
+        await bot.send_chat_action(message.chat.id, aiogram.types.chat.ChatActions.UPLOAD_VIDEO)
 
-        file_url = get_videofile_url('https://youtu.be/' + request.youtube_id)
-        downloaded_file = download_clip(file_url, request.start, request.end)
+        file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id)
+        downloaded_file = await download_clip(file_url, request.start, request.end)
 
         if know_message:
-            bot.edit_message_media(message.chat.id, video_mes_id,
-                                   media=InputMediaVideo(
-                                       downloaded_file,
-                                       caption=request_to_start_timestamp_url(request)
-                                   ))
+            await message.edit_media(media=InputMediaVideo(
+                downloaded_file,
+                caption=request_to_start_timestamp_url(request)
+            ))
         else:
-            video_mes = bot.send_video(message.chat_id, downloaded_file,
-                                       reply_to_message_id=message.message_id,
-                                       caption=request_to_start_timestamp_url(request))
+            video_mes = await bot.send_video(message.chat.id, downloaded_file,
+                                             reply_to_message_id=message.message_id,
+                                             caption=request_to_start_timestamp_url(request))
 
             last_messages[(message.chat.id, message.message_id)] = video_mes.message_id
     except Exception as e:
         logger.exception(e)
 
 
-def inline_query(bot, update, bot_channel_id: int) -> None:
+@dispatcher.inline_handler()
+async def inline_query(inline_query: InlineQuery) -> None:
     """Handle the inline query."""
-
     try:
-        query = update.inline_query.query
+        query = inline_query.query
 
         if query == "":
             return
@@ -163,43 +177,50 @@ def inline_query(bot, update, bot_channel_id: int) -> None:
         except ValueError:
             return
 
-        file_url = get_videofile_url('https://youtu.be/' + request.youtube_id)
-        downloaded_file = download_clip(file_url, request.start, request.end)
-
-        video_mes = bot.send_video(bot_channel_id, downloaded_file)
         results = [
-            InlineQueryResultCachedVideo(
+            InlineQueryResultPhoto(
                 id=str(uuid4()),
-                title=request_to_start_timestamp_url(request),
-                video_file_id=video_mes.video.file_id,
-                caption=request_to_start_timestamp_url(request),
-            ),
+                title="",
+                photo_url="https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id),
+                thumb_url="https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id),
+                reply_markup=InlineKeyboardMarkup(row_width=1, inline_keyboard=[
+                    [InlineKeyboardButton(text="Загружаем...", url=request_to_start_timestamp_url(request))]])
+            )
         ]
-        update.inline_query.answer(results, cache_time=60*60*24)
+        await bot.answer_inline_query(inline_query.id, results, cache_time=60*60*24)
+    except Exception as e:
+        logger.exception("a")
+
+
+@dispatcher.chosen_inline_handler(lambda chosen_inline_query: True)
+async def chosen_inline_handler(chosen_inline_query: types.ChosenInlineResult):
+    try:
+        query = chosen_inline_query.query
+        if query == "":
+            return
+
+        try:
+            request = match_request(query)
+        except ValueError:
+            return
+
+        file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id)
+        downloaded_file = await download_clip(file_url, request.start, request.end)
+        video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
+        await bot.edit_message_media(inline_message_id=chosen_inline_query.inline_message_id,
+                                     media=InputMediaVideo(video_mes.video.file_id,
+                                                           caption=request_to_start_timestamp_url(request)))
 
     except Exception as e:
         logger.exception("a")
 
 
-def error_handler(bot, update, error):
-    logger.warning('Update "%s" caused error "%s"', update, error)
+@dispatcher.errors_handler()
+async def error_handler(update: types.Update, exception: Exception):
+    logger.warning('Update "%s" caused error "%s"', update, exception)
 
+
+last_messages = TTLCache(maxsize=1000, ttl=86400)
 
 if __name__ == '__main__':
-    updater = Updater(TOKEN)
-    dp = updater.dispatcher
-
-    last_messages = TTLCache(maxsize=1000, ttl=86400)
-
-    dp.add_handler(MessageHandler(Filters.text,
-                                  partial(handle_message, last_messages=last_messages)))
-    dp.add_handler(MessageHandler(Filters.text,
-                                  partial(handle_message_edit, last_messages=last_messages),
-                                  message_updates=False,
-                                  edited_updates=True))
-    dp.add_handler(InlineQueryHandler(partial(inline_query, bot_channel_id=BOT_CHANNEL_ID)))
-
-    dp.add_error_handler(error_handler)
-
-    updater.start_polling()
-    updater.idle()
+    executor.start_polling(dispatcher, loop=loop)
