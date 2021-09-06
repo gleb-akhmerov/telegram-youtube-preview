@@ -215,6 +215,7 @@ async def inline_query(inline_query: InlineQuery) -> None:
             request = first_some([
                 match_request(query),
                 match_request(query + ' 10'),
+                match_request(query + ' 0 10'),
             ])
         except ValueError:
             await bot.answer_inline_query(inline_query.id, [])
