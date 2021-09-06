@@ -188,7 +188,7 @@ def make_inline_keyboard(user_id: int, request: Request) -> InlineKeyboardMarkup
         [('+1',  1), ('+2',  2), ('+5',  5), ('+10',  10), ('+30',  30)],
         [('-1', -1), ('-2', -2), ('-5', -5), ('-10', -10), ('-30', -30)],
         [('Предпросмотр', 'preview')],
-        [('Обрезать', 'send'), ('Аудио', 'audio')],
+        [('Видео', 'video'), ('Аудио', 'audio')],
     ]
 
     return InlineKeyboardMarkup(
@@ -251,7 +251,7 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
 
         request = Request(youtube_id=youtube_id, start=int(start), end=int(end))
 
-        if action in ['send', 'audio']:
+        if action in ['video', 'audio']:
             await bot.edit_message_caption(
                 inline_message_id=callback_query.inline_message_id,
                 reply_markup=InlineKeyboardMarkup(
@@ -268,7 +268,7 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
                 caption=request_to_start_timestamp_url(request),
             )
 
-        if action == 'send':
+        if action == 'video':
             file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id)
             downloaded_file = await download_clip(file_url, request.start, request.end)
             video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
