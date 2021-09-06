@@ -3,13 +3,14 @@ import logging
 import os
 from io import BytesIO
 from time import time
+from typing import Literal
 from uuid import uuid4
 
 import aiogram
 import youtube_dl
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher, filters
-from aiogram.types import InputMediaVideo, InlineQuery, InlineQueryResultPhoto, InlineKeyboardMarkup, \
+from aiogram.types import InputMediaVideo, InputMediaAudio, InlineQuery, InlineQueryResultPhoto, InlineKeyboardMarkup, \
     InlineKeyboardButton
 from aiogram.utils import executor
 from cachetools import TTLCache
@@ -43,7 +44,7 @@ logger = Gogo(
 ).logger
 
 
-async def get_videofile_url(youtube_url: str, small=False) -> str:
+async def get_videofile_url(youtube_url: str, type_: Literal['clip', 'preview', 'audio'] = 'clip') -> str:
     options = dict(quiet=True)
     with youtube_dl.YoutubeDL(options) as ydl:
         r = ydl.extract_info(youtube_url, download=False)
@@ -52,18 +53,32 @@ async def get_videofile_url(youtube_url: str, small=False) -> str:
         return (x['ext'] == 'mp4'
                 and x['acodec'] != 'none')
 
-    mp4_formats_with_audio = list(filter(is_mp4_with_audio, r['formats']))
-    if small:
+    def is_with_audio(x):
+        print(x['acodec'], x['width'], x['ext'])
+        return x['acodec'] != 'none'
+
+    if type_ == 'preview':
+        mp4_formats_with_audio = list(filter(is_mp4_with_audio, r['formats']))
         best_format = mp4_formats_with_audio[0]
-    else:
+    elif type_ == 'clip':
+        mp4_formats_with_audio = list(filter(is_mp4_with_audio, r['formats']))
         best_format = mp4_formats_with_audio[-1]
-    return best_format['url']
+    elif type_ == 'audio':
+        formats_with_audio = list(filter(is_with_audio, r['formats']))
+        best_format = formats_with_audio[-1]
+    return (best_format['ext'], best_format['url'])
 
 
-async def download_clip(url, start, end):
-    ext = 'mp4'
-    temp_file_path = '{name}.temp.{ext}'.format(name=time(), ext=ext)
-    out_file_path = '{name}.{ext}'.format(name=time(), ext=ext)
+async def download_clip(url, start, end, type_: Literal['video', 'audio'] = 'video'):
+    source_ext, url = url
+
+    if type_ == 'video':
+        ext = 'mp4'
+    elif type_ == 'audio':
+        ext = 'mp3'
+
+    temp_file_path = f'{time()}.temp.{source_ext}'
+    out_file_path = f'{time()}.{ext}'
 
     ff = FFmpeg(
         inputs={url: ['-ss', str(start)]},
@@ -79,7 +94,9 @@ async def download_clip(url, start, end):
                                  '1', '-ss', '0']},
         outputs={out_file_path: ['-c:v', 'libx264',
                                  '-preset', 'veryfast',
-                                 '-c:a', 'copy']},
+                                 '-c:a', 'copy']
+                                if type_ == 'video'
+                                else []},
         global_options='-v warning'
     )
     logger.info(ff.cmd)
@@ -170,7 +187,8 @@ def make_inline_keyboard(user_id: int, request: Request) -> InlineKeyboardMarkup
     keyboard = [
         [('+1',  1), ('+2',  2), ('+5',  5), ('+10',  10), ('+30',  30)],
         [('-1', -1), ('-2', -2), ('-5', -5), ('-10', -10), ('-30', -30)],
-        [('Предпросмотр', 'preview'), ('Обрезать', 'send')],
+        [('Предпросмотр', 'preview')],
+        [('Обрезать', 'send'), ('Аудио', 'audio')],
     ]
 
     return InlineKeyboardMarkup(
@@ -190,7 +208,6 @@ def make_inline_keyboard(user_id: int, request: Request) -> InlineKeyboardMarkup
 
 @dispatcher.inline_handler()
 async def inline_query(inline_query: InlineQuery) -> None:
-    """Handle the inline query."""
     try:
         query = inline_query.query
 
@@ -222,21 +239,6 @@ async def inline_query(inline_query: InlineQuery) -> None:
         logger.exception("a")
 
 
-#@dispatcher.chosen_inline_handler(lambda chosen_inline_query: True)
-async def chosen_inline_handler(chosen_inline_query: types.ChosenInlineResult):
-    try:
-        request = match_request(chosen_inline_query.query)
-
-        file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id)
-        downloaded_file = await download_clip(file_url, request.start, request.end)
-        video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
-        await bot.edit_message_media(inline_message_id=chosen_inline_query.inline_message_id,
-                                     media=InputMediaVideo(video_mes.video.file_id,
-                                                           caption=request_to_start_timestamp_url(request)))
-    except Exception as e:
-        logger.exception("a")
-
-
 @dispatcher.callback_query_handler(lambda callback_query: True)
 async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery):
     try:
@@ -248,7 +250,7 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
 
         request = Request(youtube_id=youtube_id, start=int(start), end=int(end))
 
-        if action == 'send':
+        if action in ['send', 'audio']:
             await bot.edit_message_caption(
                 inline_message_id=callback_query.inline_message_id,
                 reply_markup=InlineKeyboardMarkup(
@@ -265,14 +267,30 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
                 caption=request_to_start_timestamp_url(request),
             )
 
+        if action == 'send':
             file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id)
             downloaded_file = await download_clip(file_url, request.start, request.end)
             video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
-            await bot.edit_message_media(inline_message_id=callback_query.inline_message_id,
-                                         media=InputMediaVideo(video_mes.video.file_id,
-                                                               caption=request_to_start_timestamp_url(request)))
+            await bot.edit_message_media(
+                inline_message_id=callback_query.inline_message_id,
+                media=InputMediaVideo(
+                    video_mes.video.file_id,
+                    caption=request_to_start_timestamp_url(request)
+                )
+            )
+        elif action == 'audio':
+            file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id, type_='audio')
+            downloaded_file = await download_clip(file_url, request.start, request.end, type_='audio')
+            audio_mes = await bot.send_audio(BOT_CHANNEL_ID, downloaded_file)
+            await bot.edit_message_media(
+                inline_message_id=callback_query.inline_message_id,
+                media=InputMediaAudio(
+                    audio_mes.audio.file_id,
+                    caption=request_to_start_timestamp_url(request)
+                ),
+            )
         elif action == 'preview':
-            file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id, small=True)
+            file_url = await get_videofile_url('https://youtu.be/' + request.youtube_id, type_='preview')
             downloaded_file = await download_clip(file_url, request.start, request.end)
             video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
             await bot.edit_message_media(
