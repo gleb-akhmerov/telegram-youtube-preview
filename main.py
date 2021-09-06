@@ -229,7 +229,7 @@ async def inline_query(inline_query: InlineQuery) -> None:
             InlineQueryResultPhoto(
                 id=str(uuid4()),
                 title="",
-                photo_url="https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id),
+                photo_url="https://i.ytimg.com/vi/{id}/maxresdefault.jpg".format(id=request.youtube_id),
                 thumb_url="https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id),
                 reply_markup=make_inline_keyboard(inline_query.from_user.id, request),
                 caption=request_to_query(request),
