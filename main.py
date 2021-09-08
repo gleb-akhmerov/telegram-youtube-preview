@@ -10,8 +10,7 @@ import aiogram
 import youtube_dl
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher, filters
-from aiogram.types import InputMediaVideo, InputMediaAudio, InlineQuery, InlineQueryResultPhoto, InlineKeyboardMarkup, \
-    InlineKeyboardButton
+from aiogram.types import InputMediaVideo, InputMediaAudio, InlineQuery, InlineQueryResultPhoto, InlineKeyboardMarkup
 from aiogram.utils import executor
 from cachetools import TTLCache
 from ffmpy import FFmpeg
@@ -182,13 +181,20 @@ async def handle_message_edit(message: types.Message):
         logger.exception(e)
 
 
-def make_inline_keyboard(user_id: int, request: Request) -> InlineKeyboardMarkup:
-    keyboard = [
-        [('+1',  1), ('+2',  2), ('+5',  5), ('+10',  10), ('+30',  30)],
-        [('-1', -1), ('-2', -2), ('-5', -5), ('-10', -10), ('-30', -30)],
+def make_inline_keyboard(user_id: int, request: Request,
+                         mode: Literal['start', 'end'] = 'end') -> InlineKeyboardMarkup:
+    keyboard = []
+    if mode == 'start':
+        keyboard.extend([[('Начало 🖋 / Конец', 'sw_m')]])  # sw_m = switch mode
+    elif mode == 'end':
+        keyboard.extend([[('Начало / Конец 🖋 ', 'sw_m')]])
+
+    keyboard.extend([
+        [('+1', '1'), ('+2', '2'), ('+5', '5'), ('+10', '10'), ('+30', '30')],
+        [('-1', '-1'), ('-2', '-2'), ('-5', '-5'), ('-10', '-10'), ('-30', '-30')]])
+    keyboard.extend([
         [('Предпросмотр', 'preview')],
-        [('Видео', 'video'), ('Аудио', 'audio')],
-    ]
+        [('Видео', 'video'), ('Аудио', 'audio')]])
 
     return InlineKeyboardMarkup(
         row_width=1,
@@ -196,7 +202,7 @@ def make_inline_keyboard(user_id: int, request: Request) -> InlineKeyboardMarkup
             [
                 types.InlineKeyboardButton(
                     text,
-                    callback_data=f'{user_id} {request.youtube_id} {request.start} {request.end} {action}',
+                    callback_data=f'{user_id} {request.youtube_id} {request.start} {request.end} {mode} {action}',
                 )
                 for text, action in row
             ]
@@ -242,7 +248,7 @@ async def inline_query(inline_query: InlineQuery) -> None:
 @dispatcher.callback_query_handler(lambda callback_query: True)
 async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery):
     try:
-        user_id, youtube_id, start, end, action = callback_query.data.split()
+        user_id, youtube_id, start, end, edit_mode, action = callback_query.data.split()
 
         if callback_query.from_user.id != int(user_id):
             await callback_query.answer(text='You shall not press!')
@@ -299,15 +305,33 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
                     video_mes.video.file_id,
                     caption=request_to_query(request),
                 ),
-                reply_markup=make_inline_keyboard(callback_query.from_user.id, request),
+                reply_markup=make_inline_keyboard(callback_query.from_user.id, request, edit_mode),
+            )
+        elif action == 'sw_m':
+            edit_mode = 'end' if edit_mode == 'start' else 'start'
+            await bot.edit_message_reply_markup(
+                inline_message_id=callback_query.inline_message_id,
+                reply_markup=make_inline_keyboard(callback_query.from_user.id, request, edit_mode)
             )
         else:
+
             delta = int(action)
-            request.end += delta
+            old_start, old_end = (request.start, request.end)
+            if edit_mode == 'end':
+                request.end += delta
+                request.end = max(request.start, request.end)
+            elif edit_mode == 'start':
+                request.start += delta
+                request.start = max(request.start, 0)
+                request.start = min(request.start, request.end)
+
+            if old_start == request.start and old_end == request.end:
+                await callback_query.answer()
+                return
 
             await bot.edit_message_caption(
                 inline_message_id=callback_query.inline_message_id,
-                reply_markup=make_inline_keyboard(callback_query.from_user.id, request),
+                reply_markup=make_inline_keyboard(callback_query.from_user.id, request, edit_mode),
                 caption=request_to_query(request),
             )
         await callback_query.answer()
