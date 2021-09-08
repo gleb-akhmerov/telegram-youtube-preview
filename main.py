@@ -54,7 +54,6 @@ async def get_videofile_url(youtube_url: str, type_: Literal['clip', 'preview', 
                 and x['acodec'] != 'none')
 
     def is_with_audio(x):
-        print(x['acodec'], x['width'], x['ext'])
         return x['acodec'] != 'none'
 
     if type_ == 'preview':
@@ -235,7 +234,7 @@ async def inline_query(inline_query: InlineQuery) -> None:
                 caption=request_to_query(request),
             ),
         ]
-        await bot.answer_inline_query(inline_query.id, results, cache_time=60 * 60 * 24)
+        await bot.answer_inline_query(inline_query.id, results, cache_time=0)
     except Exception as e:
         logger.exception("a")
 
