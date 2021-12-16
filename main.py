@@ -7,7 +7,7 @@ from typing import Literal
 from uuid import uuid4
 
 import aiogram
-import youtube_dl
+import yt_dlp
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher, filters
 from aiogram.types import InputMediaVideo, InputMediaAudio, InlineQuery, InlineQueryResultPhoto, InlineKeyboardMarkup
@@ -44,26 +44,27 @@ logger = Gogo(
 
 
 async def get_videofile_url(youtube_url: str, type_: Literal['clip', 'preview', 'audio'] = 'clip') -> str:
-    options = dict(quiet=True)
-    with youtube_dl.YoutubeDL(options) as ydl:
+    options = dict()
+    with yt_dlp.YoutubeDL(options) as ydl:
         r = ydl.extract_info(youtube_url, download=False)
 
-    def is_mp4_with_audio(x):
-        return (x['ext'] == 'mp4'
+    def is_video_with_audio(x):
+        return (x['vcodec'] != 'none'
                 and x['acodec'] != 'none')
 
     def is_with_audio(x):
         return x['acodec'] != 'none'
 
     if type_ == 'preview':
-        mp4_formats_with_audio = list(filter(is_mp4_with_audio, r['formats']))
+        mp4_formats_with_audio = list(filter(is_video_with_audio, r['formats']))
         best_format = mp4_formats_with_audio[0]
     elif type_ == 'clip':
-        mp4_formats_with_audio = list(filter(is_mp4_with_audio, r['formats']))
+        mp4_formats_with_audio = list(filter(is_video_with_audio, r['formats']))
         best_format = mp4_formats_with_audio[-1]
     elif type_ == 'audio':
         formats_with_audio = list(filter(is_with_audio, r['formats']))
         best_format = formats_with_audio[-1]
+    print(best_format)
     return (best_format['ext'], best_format['url'])
 
 
