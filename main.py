@@ -10,11 +10,12 @@ import aiogram
 import yt_dlp
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher, filters
-from aiogram.types import InputMediaVideo, InputMediaAudio, InlineQuery, InlineQueryResultPhoto, InlineKeyboardMarkup
+from aiogram.types import InputMediaVideo, InputMediaAudio, InlineQuery, InlineQueryResultCachedPhoto, InlineKeyboardMarkup
 from aiogram.utils import executor
 from cachetools import TTLCache
 from ffmpy import FFmpeg
 from pygogo import Gogo
+import requests
 
 from config import TOKEN, BOT_CHANNEL_ID
 from parse import Request, match_request, request_to_start_timestamp_url, first_some, request_to_query
@@ -64,7 +65,6 @@ async def get_videofile_url(youtube_url: str, type_: Literal['clip', 'preview', 
     elif type_ == 'audio':
         formats_with_audio = list(filter(is_with_audio, r['formats']))
         best_format = formats_with_audio[-1]
-    print(best_format)
     return (best_format['ext'], best_format['url'])
 
 
@@ -111,7 +111,8 @@ async def download_clip(url, start, end, type_: Literal['video', 'audio'] = 'vid
     return out_file
 
 
-@dispatcher.message_handler(filters.Text(contains="https", ignore_case=False))
+
+@dispatcher.message_handler()
 async def handle_message(message: types.Message):
     try:
         try:
@@ -138,7 +139,7 @@ async def handle_message(message: types.Message):
         logger.exception(e)
 
 
-@dispatcher.edited_message_handler(filters.Text(contains="https", ignore_case=False))
+@dispatcher.edited_message_handler()
 async def handle_message_edit(message: types.Message):
     try:
         try:
@@ -191,8 +192,8 @@ def make_inline_keyboard(user_id: int, request: Request,
         keyboard.extend([[('Начало / Конец 🖋 ', 'sw_m')]])
 
     keyboard.extend([
-        [('+1', '1'), ('+2', '2'), ('+5', '5'), ('+10', '10'), ('+30', '30')],
-        [('-1', '-1'), ('-2', '-2'), ('-5', '-5'), ('-10', '-10'), ('-30', '-30')]])
+        [('+0.1', '0.1'), ('+0.5', '0.5'), ('+1', '1'), ('+2', '2'), ('+5', '5'), ('+10', '10'), ('+30', '30')],
+        [('-0.1', '-0.1'), ('-0.5', '-0.5'), ('-1', '-1'), ('-2', '-2'), ('-5', '-5'), ('-10', '-10'), ('-30', '-30')]])
     keyboard.extend([
         [('Предпросмотр', 'preview')],
         [('Видео', 'video'), ('Аудио', 'audio')]])
@@ -203,7 +204,7 @@ def make_inline_keyboard(user_id: int, request: Request,
             [
                 types.InlineKeyboardButton(
                     text,
-                    callback_data=f'{user_id} {request.youtube_id} {request.start} {request.end} {mode} {action}',
+                    callback_data=f'{user_id} {request.youtube_id} {round(request.start, 1)} {round(request.end, 1)} {mode} {action}',
                 )
                 for text, action in row
             ]
@@ -216,6 +217,7 @@ def make_inline_keyboard(user_id: int, request: Request,
 async def inline_query(inline_query: InlineQuery) -> None:
     try:
         query = inline_query.query
+        logger.info(f"Inline query: {query}")
 
         try:
             request = first_some([
@@ -231,17 +233,21 @@ async def inline_query(inline_query: InlineQuery) -> None:
             await bot.answer_inline_query(inline_query.id, [])
             return
 
+        r = requests.get("https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id), timeout=10)
+        r.raise_for_status()
+        thumbnail_file = BytesIO(r.content)
+        thumbnail_mes = await bot.send_photo(BOT_CHANNEL_ID, thumbnail_file)
+
         results = [
-            InlineQueryResultPhoto(
+            InlineQueryResultCachedPhoto(
                 id=str(uuid4()),
-                title="",
-                photo_url="https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id),
-                thumb_url="https://i.ytimg.com/vi/{id}/mqdefault.jpg".format(id=request.youtube_id),
+                photo_file_id=thumbnail_mes.photo[-1].file_id,
                 reply_markup=make_inline_keyboard(inline_query.from_user.id, request),
                 caption=request_to_query(request),
             ),
         ]
-        await bot.answer_inline_query(inline_query.id, results, cache_time=0)
+        success = await bot.answer_inline_query(inline_query.id, results)
+        logger.info(f"Sent answer: inline_query.id = {inline_query.id}, results = {results}, success = {success}")
     except Exception as e:
         logger.exception("a")
 
@@ -255,7 +261,7 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
             await callback_query.answer(text='You shall not press!')
             return
 
-        request = Request(youtube_id=youtube_id, start=int(start), end=int(end))
+        request = Request(youtube_id=youtube_id, start=float(start), end=float(end))
 
         if action in ['video', 'audio']:
             await bot.edit_message_caption(
@@ -316,7 +322,7 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
             )
         else:
 
-            delta = int(action)
+            delta = float(action)
             old_start, old_end = (request.start, request.end)
             if edit_mode == 'end':
                 request.end += delta

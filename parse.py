@@ -139,17 +139,17 @@ def seconds_to_ts(val: int) -> Timestamp:
 
 def ts_to_hms(ts: Timestamp) -> str:
     return (
-          (str(ts.h) + 'h' if ts.h > 0 else '')
-        + (str(ts.m) + 'm' if ts.m > 0 else '')
-        + (str(ts.s) + 's' if ts.s > 0 else '')
+          (str(int(ts.h)) + 'h' if ts.h > 0 else '')
+        + (str(int(ts.m)) + 'm' if ts.m > 0 else '')
+        + (str(int(ts.s)) + 's' if ts.s > 0 else '')
     )
 
 
 def ts_to_columns(ts: Timestamp) -> str:
     return (
-          (f'{ts.h:02d}' + ':' if ts.h > 0 else '')
-        + f'{ts.m:02d}' + ':'
-        + f'{ts.s:02d}'
+          (f'{ts.h:02.0f}' + ':' if ts.h > 0 else '')
+        + f'{ts.m:02.0f}' + ':'
+        + f'{ts.s:02.1f}'
     )
 
 
