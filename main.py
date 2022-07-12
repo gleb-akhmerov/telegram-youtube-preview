@@ -45,27 +45,17 @@ logger = Gogo(
 
 
 async def get_videofile_url(youtube_url: str, type_: Literal['clip', 'preview', 'audio'] = 'clip') -> str:
-    options = dict()
+    format_by_type = {
+        'preview': 'worst',
+        'clip': 'best',
+        'audio': 'bestaudio/best',
+    }
+
+    options = dict(format=format_by_type[type_], check_formats='selected', verbose=True)
     with yt_dlp.YoutubeDL(options) as ydl:
         r = ydl.extract_info(youtube_url, download=False)
 
-    def is_video_with_audio(x):
-        return (x['vcodec'] != 'none'
-                and x['acodec'] != 'none')
-
-    def is_with_audio(x):
-        return x['acodec'] != 'none'
-
-    if type_ == 'preview':
-        mp4_formats_with_audio = list(filter(is_video_with_audio, r['formats']))
-        best_format = mp4_formats_with_audio[0]
-    elif type_ == 'clip':
-        mp4_formats_with_audio = list(filter(is_video_with_audio, r['formats']))
-        best_format = mp4_formats_with_audio[-1]
-    elif type_ == 'audio':
-        formats_with_audio = list(filter(is_with_audio, r['formats']))
-        best_format = formats_with_audio[-1]
-    return (best_format['ext'], best_format['url'])
+    return (r['ext'], r['url'])
 
 
 async def download_clip(url, start, end, type_: Literal['video', 'audio'] = 'video'):
