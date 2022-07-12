@@ -4,7 +4,7 @@ funcy==1.11
 furl==1.0.1
 pygogo==0.12.0
 yt-dlp==2022.6.29
-ujson==5.2.0
+ujson==5.4.0
 uvloop==0.16.0
 aiogram==2.17.1
 requests==2.27.1
