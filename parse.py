@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 from typing import Optional, Tuple, Dict
 import re
 
@@ -18,7 +19,6 @@ class Timestamp:
     h: int
     m: int
     s: int
-
 
 
 def first_some(seq):
@@ -146,10 +146,12 @@ def ts_to_hms(ts: Timestamp) -> str:
 
 
 def ts_to_columns(ts: Timestamp) -> str:
+    s_frac, s_int = math.modf(ts.s)
+    s_frac = round(s_frac * 10)
     return (
           (f'{ts.h:02.0f}' + ':' if ts.h > 0 else '')
         + f'{ts.m:02.0f}' + ':'
-        + f'{ts.s:04.1f}'
+        + f'{s_int:02.0f}' + (f'.{s_frac}' if s_frac >= 1 else '')
     )
 
 

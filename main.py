@@ -325,10 +325,12 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
             if edit_mode == 'end':
                 request.end += delta
                 request.end = max(request.start, request.end)
+                request.end = round(request.end, 1)
             elif edit_mode == 'start':
                 request.start += delta
                 request.start = max(request.start, 0)
                 request.start = min(request.start, request.end)
+                request.start = round(request.start, 1)
 
             if old_start == request.start and old_end == request.end:
                 await callback_query.answer()
