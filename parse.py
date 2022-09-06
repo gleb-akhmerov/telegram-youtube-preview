@@ -149,7 +149,7 @@ def ts_to_columns(ts: Timestamp) -> str:
     return (
           (f'{ts.h:02.0f}' + ':' if ts.h > 0 else '')
         + f'{ts.m:02.0f}' + ':'
-        + f'{ts.s:02.1f}'
+        + f'{ts.s:04.1f}'
     )
 
 
