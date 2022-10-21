@@ -1,0 +1,6 @@
+version: "3.3"
+services:
+  telegram-youtube-preview:
+    build: .
+    restart: unless-stopped
+    command: python main.py
