@@ -84,7 +84,8 @@ def download_clip(url, start, end, type_: Literal['video', 'audio']):
                                  '1', '-ss', '0']},
         outputs={out_file_path: ['-c:v', 'libx264',
                                  '-preset', 'veryfast',
-                                 '-c:a', 'copy']
+                                 '-c:a', 'libopus',
+                                 '-b:a', '128000']
                                 if type_ == 'video'
                                 else []},
         global_options='-v warning'
