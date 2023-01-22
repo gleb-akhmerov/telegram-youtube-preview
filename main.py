@@ -45,7 +45,7 @@ logger = Gogo(
 
 
 FORMATS_BY_TYPE = {
-    'preview': ['worst'],
+    'preview': ['best[height<720]'],
     'clip': ['best', 'best[height<720]'],
     'audio': ['bestaudio/best'],
 }
