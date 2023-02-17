@@ -1,5 +1,4 @@
 FROM python:3.9-slim-bullseye
-#FROM python:3.9-bullseye
 
 WORKDIR /workdir
 
