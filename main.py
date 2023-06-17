@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import aiogram
 import yt_dlp
+from yt_dlp.utils import YoutubeDLError
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher, filters
 from aiogram.types import InputMediaVideo, InputMediaAudio, InlineQuery, InlineQueryResultCachedPhoto, InlineKeyboardMarkup
@@ -304,8 +305,28 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
                 caption=request_to_start_timestamp_url(request),
             )
 
+        if action in ['video', 'audio', 'preview']:
+            try:
+                downloaded_file = download_file(request, action)
+            except YoutubeDLError as e:
+                await bot.edit_message_caption(
+                    inline_message_id=callback_query.inline_message_id,
+                    reply_markup=InlineKeyboardMarkup(
+                        row_width=1,
+                        inline_keyboard=[
+                            [
+                                types.InlineKeyboardButton(
+                                    "Error",
+                                    url=request_to_start_timestamp_url(request),
+                                )
+                            ]
+                        ],
+                    ),
+                    caption=request_to_start_timestamp_url(request) + "\n\n" + str(e),
+                )
+                raise
+
         if action == 'video':
-            downloaded_file = download_file(request, 'video')
             video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
             await bot.edit_message_media(
                 inline_message_id=callback_query.inline_message_id,
@@ -315,7 +336,6 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
                 )
             )
         elif action == 'audio':
-            downloaded_file = download_file(request, 'audio')
             audio_mes = await bot.send_audio(BOT_CHANNEL_ID, downloaded_file)
             await bot.edit_message_media(
                 inline_message_id=callback_query.inline_message_id,
@@ -325,7 +345,6 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
                 ),
             )
         elif action == 'preview':
-            downloaded_file = download_file(request, 'preview')
             video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
             await bot.edit_message_media(
                 inline_message_id=callback_query.inline_message_id,
