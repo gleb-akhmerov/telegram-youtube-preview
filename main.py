@@ -283,6 +283,8 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
             await callback_query.answer(text='You shall not press!')
             return
 
+        await callback_query.answer()
+
         request = Request(youtube_id=youtube_id, start=float(start), end=float(end))
 
         if action in ['video', 'audio']:
@@ -360,7 +362,6 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
                 request.start = round(request.start, 1)
 
             if old_start == request.start and old_end == request.end:
-                await callback_query.answer()
                 return
 
             await bot.edit_message_caption(
@@ -368,7 +369,6 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
                 reply_markup=make_inline_keyboard(callback_query.from_user.id, request, start_end_mode, int_frac_mode),
                 caption=request_to_query(request),
             )
-        await callback_query.answer()
     except Exception as e:
         logger.exception("a")
 
