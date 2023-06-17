@@ -46,7 +46,7 @@ logger = Gogo(
 
 FORMATS_BY_TYPE = {
     'preview': ['best[height<720]'],
-    'clip': ['best', 'best[height<720]'],
+    'video': ['best', 'best[height<720]'],
     'audio': ['bestaudio/best'],
 }
 
@@ -103,7 +103,7 @@ def download_clip(url, start, end, type_: Literal['video', 'audio']):
     return out_file
 
 
-def download_file(request, type_: Literal['preview', 'clip', 'audio']):
+def download_file(request, type_: Literal['preview', 'video', 'audio']):
     media_type = 'audio' if type_ == 'audio' else 'video'
     for format in FORMATS_BY_TYPE[type_]:
         file_url = get_file_url('https://youtu.be/' + request.youtube_id, format)
@@ -132,7 +132,7 @@ async def handle_message(message: types.Message):
 
         await bot.send_chat_action(message.chat.id, aiogram.types.chat.ChatActions.UPLOAD_VIDEO)
 
-        downloaded_file = download_file(request, 'clip')
+        downloaded_file = download_file(request, 'video')
         video_mes = await bot.send_video(message.chat.id, downloaded_file,
                                          reply_to_message_id=message.message_id,
                                          caption=request_to_start_timestamp_url(request))
@@ -168,7 +168,7 @@ async def handle_message_edit(message: types.Message):
 
         await bot.send_chat_action(message.chat.id, aiogram.types.chat.ChatActions.UPLOAD_VIDEO)
 
-        downloaded_file = download_file(request, 'clip')
+        downloaded_file = download_file(request, 'video')
 
         if know_message:
             await bot.edit_message_media(chat_id=message.chat.id,
@@ -305,7 +305,7 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
             )
 
         if action == 'video':
-            downloaded_file = download_file(request, 'clip')
+            downloaded_file = download_file(request, 'video')
             video_mes = await bot.send_video(BOT_CHANNEL_ID, downloaded_file)
             await bot.edit_message_media(
                 inline_message_id=callback_query.inline_message_id,
