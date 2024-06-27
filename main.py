@@ -113,15 +113,16 @@ def download_clip(url, start, end, type_: Literal['video', 'audio']):
 
 def download_file(request, type_: Literal['preview', 'video', 'audio']):
     media_type = 'audio' if type_ == 'audio' else 'video'
-    for format in FORMATS_BY_TYPE[type_]:
-        file_url = get_file_url('https://youtu.be/' + request.youtube_id, format)
+    for i, format in enumerate(FORMATS_BY_TYPE[type_]):
         try:
+            logger.info(f"Trying format: {format}")
+            file_url = get_file_url('https://youtu.be/' + request.youtube_id, format)
             return download_clip(file_url, request.start, request.end, media_type)
-        except FFRuntimeError as e:
-            continue
-    else:
-        raise e
-
+        except (FFRuntimeError, yt_dlp.utils.DownloadError) as e:
+            if i < len(FORMATS_BY_TYPE[type_]) - 1:
+                continue
+            else:
+                raise e
 
 
 @dispatcher.message_handler()
