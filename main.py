@@ -11,7 +11,14 @@ import yt_dlp
 from yt_dlp.utils import YoutubeDLError
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher, filters
-from aiogram.types import InputMediaVideo, InputMediaAudio, InlineQuery, InlineQueryResultCachedPhoto, InlineKeyboardMarkup
+from aiogram.types import (
+    InputFile,
+    InputMediaVideo,
+    InputMediaAudio,
+    InlineQuery,
+    InlineQueryResultCachedPhoto,
+    InlineKeyboardMarkup,
+)
 from aiogram.utils import executor
 from cachetools import TTLCache
 from ffmpy import FFmpeg, FFRuntimeError
