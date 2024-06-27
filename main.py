@@ -319,18 +319,8 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
             except YoutubeDLError as e:
                 await bot.edit_message_caption(
                     inline_message_id=callback_query.inline_message_id,
-                    reply_markup=InlineKeyboardMarkup(
-                        row_width=1,
-                        inline_keyboard=[
-                            [
-                                types.InlineKeyboardButton(
-                                    "Error",
-                                    url=request_to_start_timestamp_url(request),
-                                )
-                            ]
-                        ],
-                    ),
-                    caption=request_to_start_timestamp_url(request) + "\n\n" + str(e),
+                    reply_markup=make_inline_keyboard(callback_query.from_user.id, request, start_end_mode, int_frac_mode),
+                    caption=request_to_query(request) + "\n\n" + str(e),
                 )
                 raise
 
