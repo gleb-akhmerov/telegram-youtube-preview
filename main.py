@@ -1,7 +1,11 @@
 import asyncio
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 import logging
 import os
 from io import BytesIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from time import time
 from typing import Literal
 from uuid import uuid4
@@ -52,77 +56,70 @@ logger = Gogo(
 ).logger
 
 
-FORMATS_BY_TYPE = {
-    'preview': ['best[height<720]'],
-    'video': ['best', 'best[height<720]'],
-    'audio': ['bestaudio/best'],
+FORMAT_SORTS_BY_TYPE = {
+    "preview": "+res:480",
+    "video": "res:1080",
+    "audio": "hasaud",
+}
+
+EXTS_BY_TYPE = {
+    "preview": "mp4",
+    "video": "mp4",
+    "audio": "mp3",
 }
 
 
-def get_file_url(youtube_url: str, format: str) -> str:
-    options = dict(format=format, check_formats='selected', verbose=True)
-    with yt_dlp.YoutubeDL(options) as ydl:
-        r = ydl.extract_info(youtube_url, download=False)
+def download_sync(request, type_: Literal["preview", "video", "audio"]):
+    ext = EXTS_BY_TYPE[type_]
+    filename = f"out.{ext}"
 
-    return (r['ext'], r['url'])
+    with TemporaryDirectory() as tempdir:
+        options = {
+            "verbose": True,
+            "format": (
+                "bestvideo*+bestaudio" if type_ != "audio" else "bestaudio*"
+            ),
+            "format_sort": [FORMAT_SORTS_BY_TYPE[type_]],
+            "format_sort_force": True,
+            "download_ranges": yt_dlp.utils.download_range_func(
+                [], [[request.start, request.end]]
+            ),
+            "force_keyframes_at_cuts": True,
+            "external_downloader": {"default": "ffmpeg"},
+            "external_downloader_args": (
+                {
+                    "ffmpeg_o": [
+                        "-c:v", "libx264",
+                        "-preset", "veryfast",
+                        "-c:a", "libopus",
+                        "-b:a", "128000",
+                    ]
+                }
+                if type != "audio"
+                else {}
+            ),
+            "merge_output_format": ext,
+            "paths": {"home": tempdir},
+            "outtmpl": {"default": filename},
+            # yt-dlp CLI defaults
+            "fragment_retries": 10,
+            "retries": 10,
+        }
+        with yt_dlp.YoutubeDL(options) as ydl:
+            r = ydl.download(["https://youtu.be/" + request.youtube_id])
 
-
-def download_clip(url, start, end, type_: Literal['video', 'audio']):
-    source_ext, url = url
-
-    if type_ == 'video':
-        ext = 'mp4'
-    elif type_ == 'audio':
-        ext = 'mp3'
-
-    temp_file_path = f'{time()}.temp.{source_ext}'
-    out_file_path = f'{time()}.{ext}'
-
-    ff = FFmpeg(
-        inputs={url: ['-ss', str(start)]},
-        outputs={temp_file_path: ['-t', str(end - start),
-                                  '-c', 'copy']},
-        global_options='-v warning'
-    )
-    logger.info(ff.cmd)
-    ff.run()
-
-    ff = FFmpeg(
-        inputs={temp_file_path: ['-seek_timestamp',
-                                 '1', '-ss', '0']},
-        outputs={out_file_path: ['-c:v', 'libx264',
-                                 '-preset', 'veryfast',
-                                 '-c:a', 'libopus',
-                                 '-b:a', '128000']
-                                if type_ == 'video'
-                                else []},
-        global_options='-v warning'
-    )
-    logger.info(ff.cmd)
-    ff.run()
-
-    with open(out_file_path, 'rb') as f:
-        out_file = BytesIO(f.read())
-        out_file.seek(0)
-
-    os.remove(temp_file_path)
-    os.remove(out_file_path)
-
-    return out_file
+        with open(Path(tempdir) / filename, "rb") as f:
+            res = BytesIO(f.read())
+            res.seek(0)
+            return res
 
 
-def download_file(request, type_: Literal['preview', 'video', 'audio']):
-    media_type = 'audio' if type_ == 'audio' else 'video'
-    for i, format in enumerate(FORMATS_BY_TYPE[type_]):
-        try:
-            logger.info(f"Trying format: {format}")
-            file_url = get_file_url('https://youtu.be/' + request.youtube_id, format)
-            return download_clip(file_url, request.start, request.end, media_type)
-        except (FFRuntimeError, yt_dlp.utils.DownloadError) as e:
-            if i < len(FORMATS_BY_TYPE[type_]) - 1:
-                continue
-            else:
-                raise e
+async def download(*args, **kwargs):
+    loop = asyncio.get_running_loop()
+    with ProcessPoolExecutor() as exc:
+        return await loop.run_in_executor(
+            exc, partial(download_sync, *args, **kwargs)
+        )
 
 
 @dispatcher.message_handler()
@@ -141,7 +138,7 @@ async def handle_message(message: types.Message):
 
         await bot.send_chat_action(message.chat.id, aiogram.types.chat.ChatActions.UPLOAD_VIDEO)
 
-        downloaded_file = download_file(request, 'video')
+        downloaded_file = await download(request, 'video')
         video_mes = await bot.send_video(message.chat.id, downloaded_file,
                                          reply_to_message_id=message.message_id,
                                          caption=request_to_start_timestamp_url(request))
@@ -177,7 +174,7 @@ async def handle_message_edit(message: types.Message):
 
         await bot.send_chat_action(message.chat.id, aiogram.types.chat.ChatActions.UPLOAD_VIDEO)
 
-        downloaded_file = download_file(request, 'video')
+        downloaded_file = await download(request, 'video')
 
         if know_message:
             await bot.edit_message_media(chat_id=message.chat.id,
@@ -315,7 +312,7 @@ async def inline_kb_answer_callback_handler(callback_query: types.CallbackQuery)
 
         if action in ['video', 'audio', 'preview']:
             try:
-                downloaded_file = download_file(request, action)
+                downloaded_file = await download(request, action)
             except YoutubeDLError as e:
                 await bot.edit_message_caption(
                     inline_message_id=callback_query.inline_message_id,
