@@ -79,8 +79,7 @@ def download_sync(request, type_: Literal["preview", "video", "audio"]):
             "format": (
                 "bestvideo*+bestaudio" if type_ != "audio" else "bestaudio*"
             ),
-            "format_sort": [FORMAT_SORTS_BY_TYPE[type_]],
-            "format_sort_force": True,
+            "format_sort": ["proto", FORMAT_SORTS_BY_TYPE[type_]],
             "download_ranges": yt_dlp.utils.download_range_func(
                 [], [[request.start, request.end]]
             ),
