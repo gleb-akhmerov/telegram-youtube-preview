@@ -3,7 +3,7 @@ ffmpy==0.2.2
 funcy==1.11
 furl==1.0.1
 pygogo==0.12.0
-yt-dlp==2024.6.27.232805.dev0
+yt-dlp==2024.7.15.232803.dev0
 ujson==5.4.0
 uvloop==0.16.0
 aiogram==2.25.1
