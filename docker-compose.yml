@@ -2,4 +2,4 @@ services:
   telegram-youtube-preview:
     build: .
     restart: unless-stopped
-    command: python main.py
+    command: bash start.sh
