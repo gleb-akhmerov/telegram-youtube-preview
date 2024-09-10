@@ -1,10 +1,12 @@
 import asyncio
+from base64 import urlsafe_b64decode
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 import logging
 import os
 from io import BytesIO
 from pathlib import Path
+import re
 from tempfile import TemporaryDirectory
 from time import time
 from typing import Literal
@@ -124,8 +126,13 @@ async def download(*args, **kwargs):
 @dispatcher.message_handler()
 async def handle_message(message: types.Message):
     try:
+        text = message.text
+        if match := re.match(r"^/start(?:@[^ ]+)? dl-([^ ]+)$", text):
+            # https://stackoverflow.com/questions/2941995/python-ignore-incorrect-padding-error-when-base64-decoding/49459036#49459036
+            text = urlsafe_b64decode(match.group(1) + "==").decode("utf-8")
+
         try:
-            request = match_request(message.text)
+            request = match_request(text)
         except ValueError as e:
             message.reply_text(str(e))
             return
@@ -133,7 +140,7 @@ async def handle_message(message: types.Message):
             if not request:
                 return
 
-        logger.info("Message: %s, request: %s", message.text, request)
+        logger.info("Message: %s, request: %s", text, request)
 
         await bot.send_chat_action(message.chat.id, aiogram.types.chat.ChatActions.UPLOAD_VIDEO)
 
